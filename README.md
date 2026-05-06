@@ -1,36 +1,117 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Velora
 
-## Getting Started
+A visual kanban board for creative workflows. Built with Next.js 16, Prisma, and NextAuth.
 
-First, run the development server:
+## Stack
+
+| Layer | Tech |
+|---|---|
+| Framework | Next.js 16 (App Router, Turbopack) |
+| Auth | NextAuth v5 (credentials + JWT) |
+| Database | PostgreSQL via Prisma 5 |
+| Styling | Tailwind CSS v4 |
+| Animation | Framer Motion |
+| Email | Resend (REST API) |
+| Validation | Zod v4 |
+| Toasts | Sonner |
+
+## Features
+
+- Kanban boards with drag-and-drop (same-column reorder, cross-column moves)
+- Task priorities (Low / Medium / High), due dates with overdue indicator
+- Many-to-many labels per board with color swatches
+- Board background presets
+- Password reset and email verification flows
+- Keyboard shortcut: `N` to open the add-task form in the first column
+
+## Getting started
+
+### 1. Clone and install
+
+```bash
+git clone https://github.com/JoshBlazer/velora.git
+cd velora
+npm install
+```
+
+### 2. Set up environment variables
+
+```bash
+cp .env.example .env
+```
+
+Fill in `.env`:
+
+```env
+DATABASE_URL="postgresql://postgres:password@localhost:5432/velora"
+AUTH_SECRET="generate-with-openssl-rand-base64-32"
+RESEND_API_KEY="re_xxxx"   # optional — emails skip silently if unset
+APP_URL="http://localhost:3000"
+```
+
+### 3. Set up the database
+
+```bash
+npm run db:push      # push schema to DB
+npm run db:seed      # optional seed data
+```
+
+### 4. Run
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Command | Description |
+|---|---|
+| `npm run dev` | Start dev server (Turbopack) |
+| `npm run build` | Production build |
+| `npm run db:push` | Push Prisma schema to database |
+| `npm run db:seed` | Seed the database |
+| `npm run db:studio` | Open Prisma Studio |
+| `npm run db:generate` | Regenerate Prisma client |
+| `npm test` | Run Vitest unit tests |
+| `npm run test:e2e` | Run Playwright E2E tests |
 
-## Learn More
+## Project structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+src/
+  app/
+    api/            # Route handlers (boards, columns, tasks, labels, auth)
+    board/[id]/     # Board page + client component
+    boards/         # Boards list
+    login/          # Auth pages
+    signup/
+    forgot-password/
+    reset-password/
+    verify-email/
+  components/
+    board/          # BoardSettings, Column, TaskCard, AddTaskForm
+    layout/         # GlassLayout
+    ui/             # GlassPanel
+  lib/
+    date-utils.ts   # formatDueDate, isOverdue, toDateInputValue
+    email.ts        # Resend helpers
+    prisma.ts       # Prisma client singleton
+    types.ts        # Shared TypeScript types
+  auth.ts           # NextAuth config
+  proxy.ts          # Route protection
+prisma/
+  schema.prisma
+  seed.ts
+tests/              # Vitest unit tests
+e2e/                # Playwright E2E tests
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Email
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Email sending uses the [Resend](https://resend.com) REST API directly. If `RESEND_API_KEY` is not set, emails are skipped silently — the token is still written to the database, so you can test the reset/verify flows by grabbing the token from Prisma Studio.
 
-## Deploy on Vercel
+## Deployment
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The app is stateless — deploy to any platform that supports Node.js (Vercel, Railway, Fly.io). Set the three env vars (`DATABASE_URL`, `AUTH_SECRET`, `APP_URL`) and run `prisma db push` against your production database on first deploy.

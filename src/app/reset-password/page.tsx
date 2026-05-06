@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Sparkles, XCircle } from "lucide-react";
+
+export const metadata: Metadata = {
+    title: "Reset Password",
+    description: "Set a new password for your Velora account.",
+};
 import { GlassLayout } from "@/components/layout/GlassLayout";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import prisma from "@/lib/prisma";

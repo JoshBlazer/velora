@@ -11,9 +11,23 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Velora - Creative Workflow Platform",
-  description: "A high-end creative workflow platform for visual artists. Organize your projects with style.",
-  keywords: ["workflow", "creative", "project management", "design", "artists"],
+  title: {
+    template: "%s | Velora",
+    default: "Velora — Visual Kanban for Creatives",
+  },
+  description: "A beautiful kanban platform for creative workflows. Organize projects with style.",
+  keywords: ["kanban", "workflow", "creative", "project management", "design"],
+  openGraph: {
+    type: "website",
+    siteName: "Velora",
+    title: "Velora — Visual Kanban for Creatives",
+    description: "A beautiful kanban platform for creative workflows.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Velora — Visual Kanban for Creatives",
+    description: "A beautiful kanban platform for creative workflows.",
+  },
 };
 
 export default function RootLayout({

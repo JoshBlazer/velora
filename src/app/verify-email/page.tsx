@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Sparkles, CheckCircle, XCircle } from "lucide-react";
+
+export const metadata: Metadata = {
+    title: "Verify Email",
+    description: "Confirm your Velora email address.",
+};
 import { GlassLayout } from "@/components/layout/GlassLayout";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import prisma from "@/lib/prisma";

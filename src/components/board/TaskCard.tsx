@@ -6,6 +6,7 @@ import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Task, Label, priorityColors } from "@/lib/types";
 import { GripVertical, Trash2, X, Check, Calendar } from "lucide-react";
 import { Priority } from "@prisma/client";
+import { formatDueDate, isOverdue, toDateInputValue } from "@/lib/date-utils";
 
 interface TaskCardProps {
     task: Task;
@@ -14,26 +15,6 @@ interface TaskCardProps {
     onUpdate: (taskId: string, content: string, priority: Priority, dueDate: Date | null) => void;
     onDelete: (taskId: string) => void;
     onToggleLabel: (taskId: string, labelId: string, assigned: boolean) => void;
-}
-
-function formatDueDate(date: Date | null | string): string | null {
-    if (!date) return null;
-    const d = typeof date === "string" ? new Date(date) : date;
-    if (isNaN(d.getTime())) return null;
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-}
-
-function isOverdue(date: Date | null | string): boolean {
-    if (!date) return false;
-    const d = typeof date === "string" ? new Date(date) : date;
-    return d < new Date();
-}
-
-function toDateInputValue(date: Date | null | string): string {
-    if (!date) return "";
-    const d = typeof date === "string" ? new Date(date) : date;
-    if (isNaN(d.getTime())) return "";
-    return d.toISOString().split("T")[0];
 }
 
 export function TaskCard({ task, boardLabels, onDragStart, onUpdate, onDelete, onToggleLabel }: TaskCardProps) {

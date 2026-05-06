@@ -1,10 +1,16 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
+
+export const metadata: Metadata = {
+    title: "My Boards",
+    description: "View and manage your Velora kanban boards.",
+};
 import { GlassLayout } from "@/components/layout/GlassLayout";
 import { GlassPanel } from "@/components/ui/GlassPanel";
-import { Sparkles, Plus, Layers } from "lucide-react";
+import { Sparkles, Plus, Layers, Settings } from "lucide-react";
 import { SignOutButton } from "./SignOutButton";
 
 export default async function BoardsPage() {
@@ -41,10 +47,27 @@ export default async function BoardsPage() {
                         <span className="text-xl font-bold text-white">Velora</span>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                        <span className="text-sm text-velora-text-muted">
-                            {session.user.name || session.user.email}
-                        </span>
+                    <div className="flex items-center gap-3">
+                        <Link
+                            href="/settings"
+                            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-velora-text-muted transition-colors hover:bg-white/10 hover:text-white"
+                        >
+                            {session.user.image ? (
+                                <img
+                                    src={session.user.image}
+                                    alt={session.user.name ?? "avatar"}
+                                    width={28}
+                                    height={28}
+                                    className="rounded-full object-cover"
+                                />
+                            ) : (
+                                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-velora-cyan to-velora-pink text-xs font-semibold text-white">
+                                    {(session.user.name || session.user.email || "?")[0].toUpperCase()}
+                                </div>
+                            )}
+                            <span className="hidden sm:block">{session.user.name || session.user.email}</span>
+                            <Settings className="h-4 w-4" />
+                        </Link>
                         <SignOutButton />
                     </div>
                 </header>

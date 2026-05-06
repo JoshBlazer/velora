@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
@@ -6,6 +7,14 @@ import { BoardWithColumns } from "@/lib/types";
 
 interface BoardPageProps {
     params: Promise<{ id: string }>;
+}
+
+export async function generateMetadata({ params }: BoardPageProps): Promise<Metadata> {
+    const { id } = await params;
+    const board = await prisma.board.findUnique({ where: { id }, select: { title: true } });
+    return board
+        ? { title: board.title, description: `Kanban board: ${board.title}` }
+        : { title: "Board" };
 }
 
 export default async function BoardPage({ params }: BoardPageProps) {
