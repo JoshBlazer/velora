@@ -3,6 +3,8 @@ import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { Priority } from "@prisma/client";
+import { getBoardAccess, canWrite } from "@/lib/board-access";
+import { logActivity } from "@/lib/activity";
 
 const createSchema = z.object({
     content: z.string().min(1, "Content is required"),
@@ -34,10 +36,12 @@ export async function POST(request: NextRequest) {
 
         const column = await prisma.column.findUnique({
             where: { id: columnId },
-            include: { board: { select: { userId: true } } },
+            select: { boardId: true },
         });
+        if (!column) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-        if (!column || column.board.userId !== session.user.id) {
+        const access = await getBoardAccess(column.boardId, session.user.id);
+        if (!canWrite(access)) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
@@ -57,6 +61,8 @@ export async function POST(request: NextRequest) {
             },
             include: { labels: true },
         });
+
+        await logActivity(column.boardId, session.user.id, "TASK_CREATED", { content });
 
         return NextResponse.json(task, { status: 201 });
     } catch (error) {
@@ -81,10 +87,12 @@ export async function PATCH(request: NextRequest) {
 
         const task = await prisma.task.findUnique({
             where: { id },
-            include: { column: { include: { board: { select: { userId: true } } } } },
+            include: { column: { select: { boardId: true } } },
         });
+        if (!task) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-        if (!task || task.column.board.userId !== session.user.id) {
+        const access = await getBoardAccess(task.column.boardId, session.user.id);
+        if (!canWrite(access)) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
@@ -94,6 +102,8 @@ export async function PATCH(request: NextRequest) {
         if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
 
         const updated = await prisma.task.update({ where: { id }, data: updateData, include: { labels: true } });
+
+        await logActivity(task.column.boardId, session.user.id, "TASK_UPDATED", { content: content ?? task.content });
 
         return NextResponse.json(updated);
     } catch (error) {
@@ -116,14 +126,17 @@ export async function DELETE(request: NextRequest) {
 
         const task = await prisma.task.findUnique({
             where: { id },
-            include: { column: { include: { board: { select: { userId: true } } } } },
+            include: { column: { select: { boardId: true } } },
         });
+        if (!task) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-        if (!task || task.column.board.userId !== session.user.id) {
+        const access = await getBoardAccess(task.column.boardId, session.user.id);
+        if (!canWrite(access)) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
         await prisma.task.delete({ where: { id } });
+        await logActivity(task.column.boardId, session.user.id, "TASK_DELETED", { content: task.content });
 
         return NextResponse.json({ success: true });
     } catch (error) {

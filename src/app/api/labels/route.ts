@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { getBoardAccess, canRead, canWrite } from "@/lib/board-access";
 
 const createSchema = z.object({
     boardId: z.string().min(1, "Board ID is required"),
@@ -21,17 +22,12 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ error: "Board ID is required" }, { status: 400 });
         }
 
-        const board = await prisma.board.findUnique({
-            where: { id: boardId },
-            select: { userId: true },
-        });
-
-        if (!board || board.userId !== session.user.id) {
+        const access = await getBoardAccess(boardId, session.user.id);
+        if (!canRead(access)) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
         const labels = await prisma.label.findMany({ where: { boardId } });
-
         return NextResponse.json(labels);
     } catch (error) {
         console.error("Error fetching labels:", error);
@@ -53,19 +49,12 @@ export async function POST(request: NextRequest) {
 
         const { boardId, name, color } = parsed.data;
 
-        const board = await prisma.board.findUnique({
-            where: { id: boardId },
-            select: { userId: true },
-        });
-
-        if (!board || board.userId !== session.user.id) {
+        const access = await getBoardAccess(boardId, session.user.id);
+        if (!canWrite(access)) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
-        const label = await prisma.label.create({
-            data: { name, color, boardId },
-        });
-
+        const label = await prisma.label.create({ data: { name, color, boardId } });
         return NextResponse.json(label, { status: 201 });
     } catch (error) {
         console.error("Error creating label:", error);

@@ -2,17 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { getBoardAccess, canWrite } from "@/lib/board-access";
 
 const bodySchema = z.object({
     labelId: z.string().min(1, "Label ID is required"),
 });
 
-async function verifyTaskOwnership(taskId: string, userId: string) {
+async function getTaskBoardId(taskId: string): Promise<string | null> {
     const task = await prisma.task.findUnique({
         where: { id: taskId },
-        include: { column: { include: { board: { select: { userId: true } } } } },
+        select: { column: { select: { boardId: true } } },
     });
-    return task && task.column.board.userId === userId ? task : null;
+    return task?.column.boardId ?? null;
 }
 
 export async function POST(
@@ -31,19 +32,20 @@ export async function POST(
             return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
         }
 
-        const task = await verifyTaskOwnership(taskId, session.user.id);
-        if (!task) {
+        const boardId = await getTaskBoardId(taskId);
+        if (!boardId) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+        const access = await getBoardAccess(boardId, session.user.id);
+        if (!canWrite(access)) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
         const { labelId } = parsed.data;
-
         const label = await prisma.label.findUnique({
             where: { id: labelId },
-            select: { boardId: true, board: { select: { userId: true } } },
+            select: { boardId: true },
         });
-
-        if (!label || label.board.userId !== session.user.id) {
+        if (!label || label.boardId !== boardId) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
@@ -75,8 +77,11 @@ export async function DELETE(
             return NextResponse.json({ error: "Label ID is required" }, { status: 400 });
         }
 
-        const task = await verifyTaskOwnership(taskId, session.user.id);
-        if (!task) {
+        const boardId = await getTaskBoardId(taskId);
+        if (!boardId) return NextResponse.json({ error: "Not found" }, { status: 404 });
+
+        const access = await getBoardAccess(boardId, session.user.id);
+        if (!canWrite(access)) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 

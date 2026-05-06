@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { getBoardAccess, canRead, canWrite } from "@/lib/board-access";
+import { logActivity } from "@/lib/activity";
 
 const updateSchema = z.object({
     title: z.string().min(1, "Title is required").optional(),
@@ -21,6 +23,10 @@ export async function GET(
         }
 
         const { id } = await params;
+        const access = await getBoardAccess(id, session.user.id);
+        if (!canRead(access)) {
+            return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
 
         const board = await prisma.board.findUnique({
             where: { id },
@@ -32,12 +38,11 @@ export async function GET(
                         tasks: { orderBy: { order: "asc" } },
                     },
                 },
+                members: {
+                    include: { user: { select: { id: true, name: true, email: true, image: true } } },
+                },
             },
         });
-
-        if (!board || board.userId !== session.user.id) {
-            return NextResponse.json({ error: "Not found" }, { status: 404 });
-        }
 
         return NextResponse.json(board);
     } catch (error) {
@@ -57,19 +62,14 @@ export async function PATCH(
         }
 
         const { id } = await params;
+        const access = await getBoardAccess(id, session.user.id);
+        if (!canWrite(access)) {
+            return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
 
         const parsed = updateSchema.safeParse(await request.json());
         if (!parsed.success) {
             return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
-        }
-
-        const board = await prisma.board.findUnique({
-            where: { id },
-            select: { userId: true },
-        });
-
-        if (!board || board.userId !== session.user.id) {
-            return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
         const { title, background } = parsed.data;
@@ -80,6 +80,10 @@ export async function PATCH(
                 ...(background !== undefined && { background }),
             },
         });
+
+        if (title !== undefined) {
+            await logActivity(id, session.user.id, "BOARD_RENAMED", { title });
+        }
 
         return NextResponse.json(updated);
     } catch (error) {
@@ -99,13 +103,8 @@ export async function DELETE(
         }
 
         const { id } = await params;
-
-        const board = await prisma.board.findUnique({
-            where: { id },
-            select: { userId: true },
-        });
-
-        if (!board || board.userId !== session.user.id) {
+        const access = await getBoardAccess(id, session.user.id);
+        if (access !== "owner") {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 

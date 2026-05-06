@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
+import { getBoardAccess, canWrite } from "@/lib/board-access";
 
 export async function DELETE(
     request: NextRequest,
@@ -16,15 +17,16 @@ export async function DELETE(
 
         const label = await prisma.label.findUnique({
             where: { id },
-            include: { board: { select: { userId: true } } },
+            select: { boardId: true },
         });
+        if (!label) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-        if (!label || label.board.userId !== session.user.id) {
+        const access = await getBoardAccess(label.boardId, session.user.id);
+        if (!canWrite(access)) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
         await prisma.label.delete({ where: { id } });
-
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("Error deleting label:", error);

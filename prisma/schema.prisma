@@ -20,6 +20,25 @@ enum Priority {
   HIGH
 }
 
+enum BoardRole {
+  OWNER
+  EDITOR
+  VIEWER
+}
+
+enum ActivityType {
+  TASK_CREATED
+  TASK_UPDATED
+  TASK_DELETED
+  TASK_MOVED
+  COLUMN_CREATED
+  COLUMN_DELETED
+  COLUMN_RENAMED
+  BOARD_RENAMED
+  MEMBER_ADDED
+  MEMBER_REMOVED
+}
+
 // ============================================
 // MODELS
 // ============================================
@@ -35,9 +54,11 @@ model User {
   updatedAt     DateTime  @updatedAt
 
   // Relations
-  boards   Board[]
-  accounts Account[]
-  sessions Session[]
+  boards       Board[]
+  boardMembers BoardMember[]
+  activities   Activity[]
+  accounts     Account[]
+  sessions     Session[]
 
   @@map("users")
 }
@@ -90,13 +111,30 @@ model Board {
   updatedAt  DateTime @updatedAt
 
   // Relations
-  userId  String   @db.Uuid
-  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  columns Column[]
-  labels  Label[]
+  userId     String        @db.Uuid
+  user       User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  columns    Column[]
+  labels     Label[]
+  members    BoardMember[]
+  activities Activity[]
 
   @@index([userId])
   @@map("boards")
+}
+
+model BoardMember {
+  id        String    @id @default(uuid()) @db.Uuid
+  boardId   String    @db.Uuid
+  userId    String    @db.Uuid
+  role      BoardRole @default(EDITOR)
+  createdAt DateTime  @default(now())
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, userId])
+  @@index([boardId])
+  @@map("board_members")
 }
 
 model Column {
@@ -116,13 +154,14 @@ model Column {
 }
 
 model Task {
-  id        String    @id @default(uuid()) @db.Uuid
-  content   String
-  priority  Priority  @default(MEDIUM)
-  dueDate   DateTime? // Optional due date
-  order     Int       // Position within the column (for drag-and-drop ordering)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id              String    @id @default(uuid()) @db.Uuid
+  content         String
+  priority        Priority  @default(MEDIUM)
+  dueDate         DateTime? // Optional due date
+  reminderSentAt  DateTime? // Set after sending the due-date reminder email
+  order           Int       // Position within the column (for drag-and-drop ordering)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   // Relations
   columnId String  @db.Uuid
@@ -149,4 +188,17 @@ model Label {
   @@map("labels")
 }
 
+model Activity {
+  id        String       @id @default(uuid()) @db.Uuid
+  boardId   String       @db.Uuid
+  userId    String       @db.Uuid
+  type      ActivityType
+  meta      Json         @default("{}")
+  createdAt DateTime     @default(now())
 
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([boardId, createdAt(sort: Desc)])
+  @@map("activities")
+}

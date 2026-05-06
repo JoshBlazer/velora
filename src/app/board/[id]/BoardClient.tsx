@@ -3,7 +3,7 @@
 import { useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Sparkles, ArrowLeft, Plus } from "lucide-react";
+import { Sparkles, ArrowLeft, Plus, Activity } from "lucide-react";
 import Link from "next/link";
 import { GlassLayout } from "@/components/layout/GlassLayout";
 import { GlassPanel } from "@/components/ui/GlassPanel";
@@ -11,6 +11,7 @@ import { Column } from "@/components/board/Column";
 import { BoardSettings } from "@/components/board/BoardSettings";
 import { KeyboardShortcuts } from "@/components/board/KeyboardShortcuts";
 import { SearchFilterBar } from "@/components/board/SearchFilterBar";
+import { ActivityPanel } from "@/components/board/ActivityPanel";
 import { AddTaskFormHandle } from "@/components/board/AddTaskForm";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { BoardWithColumns, ColumnWithTasks, Label, Task } from "@/lib/types";
@@ -19,11 +20,13 @@ import { isOverdue } from "@/lib/date-utils";
 
 interface BoardClientProps {
     initialBoard: BoardWithColumns;
+    isOwner: boolean;
 }
 
-export function BoardClient({ initialBoard }: BoardClientProps) {
+export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
     const [board, setBoard] = useState<BoardWithColumns>(initialBoard);
     const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+    const [activityOpen, setActivityOpen] = useState(false);
     const firstColumnAddFormRef = useRef<AddTaskFormHandle | null>(null);
 
     const [searchQuery, setSearchQuery] = useState("");
@@ -517,12 +520,20 @@ export function BoardClient({ initialBoard }: BoardClientProps) {
                                     </div>
                                 </>
                             )}
+                            <button
+                                onClick={() => setActivityOpen(true)}
+                                title="Activity log"
+                                className="rounded-lg p-2 text-velora-text-muted transition-colors hover:bg-white/10 hover:text-white"
+                            >
+                                <Activity className="h-5 w-5" />
+                            </button>
                             <ThemeToggle />
                             <BoardSettings
                                 boardId={board.id}
                                 boardTitle={board.title}
                                 boardBackground={board.background}
                                 boardLabels={board.labels}
+                                isOwner={isOwner}
                                 onTitleUpdate={(t) => setBoard((prev) => ({ ...prev, title: t }))}
                                 onBackgroundUpdate={(bg) => setBoard((prev) => ({ ...prev, background: bg }))}
                                 onAddLabel={handleAddLabel}
@@ -598,6 +609,12 @@ export function BoardClient({ initialBoard }: BoardClientProps) {
                     </motion.div>
                 </motion.div>
             </div>
+
+            <ActivityPanel
+                boardId={board.id}
+                isOpen={activityOpen}
+                onClose={() => setActivityOpen(false)}
+            />
 
             <KeyboardShortcuts
                 onNewTask={() => firstColumnAddFormRef.current?.open()}

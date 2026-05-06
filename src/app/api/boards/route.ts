@@ -31,6 +31,9 @@ export async function POST(request: NextRequest) {
                         { title: "Done", order: 2 },
                     ],
                 },
+                members: {
+                    create: { userId: session.user.id, role: "OWNER" },
+                },
             },
             include: { columns: true },
         });

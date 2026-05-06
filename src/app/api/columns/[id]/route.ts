@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { getBoardAccess, canWrite } from "@/lib/board-access";
+import { logActivity } from "@/lib/activity";
 
 const updateSchema = z.object({
     title: z.string().min(1, "Title is required"),
@@ -26,10 +28,12 @@ export async function PATCH(
 
         const column = await prisma.column.findUnique({
             where: { id },
-            include: { board: { select: { userId: true } } },
+            select: { boardId: true },
         });
+        if (!column) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-        if (!column || column.board.userId !== session.user.id) {
+        const access = await getBoardAccess(column.boardId, session.user.id);
+        if (!canWrite(access)) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
@@ -37,6 +41,8 @@ export async function PATCH(
             where: { id },
             data: { title: parsed.data.title },
         });
+
+        await logActivity(column.boardId, session.user.id, "COLUMN_RENAMED", { title: parsed.data.title });
 
         return NextResponse.json(updated);
     } catch (error) {
@@ -59,14 +65,17 @@ export async function DELETE(
 
         const column = await prisma.column.findUnique({
             where: { id },
-            include: { board: { select: { userId: true } } },
+            select: { boardId: true, title: true },
         });
+        if (!column) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-        if (!column || column.board.userId !== session.user.id) {
+        const access = await getBoardAccess(column.boardId, session.user.id);
+        if (!canWrite(access)) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
         await prisma.column.delete({ where: { id } });
+        await logActivity(column.boardId, session.user.id, "COLUMN_DELETED", { title: column.title });
 
         return NextResponse.json({ success: true });
     } catch (error) {

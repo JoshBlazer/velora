@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 };
 import { GlassLayout } from "@/components/layout/GlassLayout";
 import { GlassPanel } from "@/components/ui/GlassPanel";
-import { Sparkles, Plus, Layers, Settings } from "lucide-react";
+import { Sparkles, Plus, Layers, Settings, Users } from "lucide-react";
 import { SignOutButton } from "./SignOutButton";
 
 export default async function BoardsPage() {
@@ -20,20 +20,32 @@ export default async function BoardsPage() {
         redirect("/login");
     }
 
-    const boards = await prisma.board.findMany({
-        where: { userId: session.user.id },
-        orderBy: { updatedAt: "desc" },
-        include: {
-            columns: {
-                include: {
-                    _count: { select: { tasks: true } },
+    const [ownedBoards, sharedMemberships] = await Promise.all([
+        prisma.board.findMany({
+            where: { userId: session.user.id },
+            orderBy: { updatedAt: "desc" },
+            include: {
+                columns: { include: { _count: { select: { tasks: true } } } },
+            },
+        }),
+        prisma.boardMember.findMany({
+            where: { userId: session.user.id, role: { not: "OWNER" } },
+            include: {
+                board: {
+                    include: {
+                        columns: { include: { _count: { select: { tasks: true } } } },
+                        user: { select: { name: true } },
+                    },
                 },
             },
-        },
-    });
+            orderBy: { createdAt: "desc" },
+        }),
+    ]);
 
-    const totalTasks = (board: typeof boards[0]) =>
-        board.columns.reduce((sum, col) => sum + col._count.tasks, 0);
+    const totalTasks = (columns: { _count: { tasks: number } }[]) =>
+        columns.reduce((sum, col) => sum + col._count.tasks, 0);
+
+    const sharedBoards = sharedMemberships.map((m) => ({ ...m.board, role: m.role }));
 
     return (
         <GlassLayout>
@@ -72,62 +84,75 @@ export default async function BoardsPage() {
                     </div>
                 </header>
 
-                {/* Page Title */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-white">Your Boards</h1>
-                    <p className="mt-2 text-velora-text-muted">
-                        Organize your creative projects
-                    </p>
-                </div>
-
-                {/* Boards Grid */}
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                    {/* Create New Board Card */}
-                    <Link href="/boards/new">
-                        <GlassPanel
-                            hoverable
-                            intensity="light"
-                            className="flex h-48 cursor-pointer flex-col items-center justify-center gap-4 border-dashed"
-                        >
-                            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-velora-cyan/20 to-velora-pink/20">
-                                <Plus className="h-7 w-7 text-velora-cyan" />
-                            </div>
-                            <span className="font-medium text-velora-text-muted">
-                                Create New Board
-                            </span>
-                        </GlassPanel>
-                    </Link>
-
-                    {/* Existing Boards */}
-                    {boards.map((board) => (
-                        <Link key={board.id} href={`/board/${board.id}`}>
+                {/* My Boards */}
+                <div className="mb-10">
+                    <h1 className="mb-6 text-3xl font-bold text-white">Your Boards</h1>
+                    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        <Link href="/boards/new">
                             <GlassPanel
                                 hoverable
-                                intensity="medium"
-                                className="h-48 cursor-pointer p-6"
+                                intensity="light"
+                                className="flex h-48 cursor-pointer flex-col items-center justify-center gap-4 border-dashed"
                             >
-                                <div className="mb-4 flex items-start justify-between">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-velora-cyan to-velora-purple">
-                                        <Layers className="h-5 w-5 text-white" />
-                                    </div>
+                                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-velora-cyan/20 to-velora-pink/20">
+                                    <Plus className="h-7 w-7 text-velora-cyan" />
                                 </div>
-                                <h3 className="mb-2 text-lg font-semibold text-white">
-                                    {board.title}
-                                </h3>
-                                <p className="text-sm text-velora-text-subtle">
-                                    {board.columns.length} columns • {totalTasks(board)} tasks
-                                </p>
+                                <span className="font-medium text-velora-text-muted">Create New Board</span>
                             </GlassPanel>
                         </Link>
-                    ))}
+
+                        {ownedBoards.map((board) => (
+                            <Link key={board.id} href={`/board/${board.id}`}>
+                                <GlassPanel hoverable intensity="medium" className="h-48 cursor-pointer p-6">
+                                    <div className="mb-4 flex items-start justify-between">
+                                        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-velora-cyan to-velora-purple">
+                                            <Layers className="h-5 w-5 text-white" />
+                                        </div>
+                                    </div>
+                                    <h3 className="mb-2 text-lg font-semibold text-white">{board.title}</h3>
+                                    <p className="text-sm text-velora-text-subtle">
+                                        {board.columns.length} columns • {totalTasks(board.columns)} tasks
+                                    </p>
+                                </GlassPanel>
+                            </Link>
+                        ))}
+                    </div>
+
+                    {ownedBoards.length === 0 && (
+                        <p className="mt-4 text-velora-text-muted">No boards yet. Create your first one!</p>
+                    )}
                 </div>
 
-                {/* Empty State */}
-                {boards.length === 0 && (
-                    <div className="mt-8 text-center">
-                        <p className="text-velora-text-muted">
-                            No boards yet. Create your first one!
-                        </p>
+                {/* Shared Boards */}
+                {sharedBoards.length > 0 && (
+                    <div>
+                        <div className="mb-6 flex items-center gap-2">
+                            <Users className="h-5 w-5 text-velora-text-muted" />
+                            <h2 className="text-xl font-semibold text-white">Shared With Me</h2>
+                        </div>
+                        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            {sharedBoards.map((board) => (
+                                <Link key={board.id} href={`/board/${board.id}`}>
+                                    <GlassPanel hoverable intensity="medium" className="h-48 cursor-pointer p-6">
+                                        <div className="mb-4 flex items-start justify-between">
+                                            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gradient-to-br from-velora-pink to-velora-purple">
+                                                <Users className="h-5 w-5 text-white" />
+                                            </div>
+                                            <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs capitalize text-velora-text-subtle">
+                                                {board.role.toLowerCase()}
+                                            </span>
+                                        </div>
+                                        <h3 className="mb-1 text-lg font-semibold text-white">{board.title}</h3>
+                                        <p className="text-xs text-velora-text-subtle">
+                                            by {board.user.name ?? "Unknown"}
+                                        </p>
+                                        <p className="mt-1 text-sm text-velora-text-subtle">
+                                            {board.columns.length} columns • {totalTasks(board.columns)} tasks
+                                        </p>
+                                    </GlassPanel>
+                                </Link>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>

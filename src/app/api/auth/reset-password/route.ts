@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 const schema = z.object({
     token: z.string().min(1, "Token is required"),
@@ -10,6 +11,10 @@ const schema = z.object({
 
 export async function POST(request: NextRequest) {
     try {
+        if (!rateLimit(`reset-password:${getClientIp(request)}`, 5, 60 * 60 * 1000)) {
+            return NextResponse.json({ error: "Too many requests. Try again later." }, { status: 429 });
+        }
+
         const parsed = schema.safeParse(await request.json());
         if (!parsed.success) {
             return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

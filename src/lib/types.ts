@@ -1,4 +1,4 @@
-import { Priority } from "@prisma/client";
+import { Priority, BoardRole, ActivityType } from "@prisma/client";
 
 export interface User {
     id: string;
@@ -45,11 +45,31 @@ export interface Task {
     content: string;
     priority: Priority;
     dueDate: Date | null;
+    reminderSentAt?: Date | null;
     order: number;
     createdAt: Date;
     updatedAt: Date;
     columnId: string;
     labels: Label[];
+}
+
+export interface BoardMember {
+    id: string;
+    boardId: string;
+    userId: string;
+    role: BoardRole;
+    createdAt: Date;
+    user?: Pick<User, "id" | "name" | "email" | "image">;
+}
+
+export interface Activity {
+    id: string;
+    boardId: string;
+    userId: string;
+    type: ActivityType;
+    meta: Record<string, unknown>;
+    createdAt: Date;
+    user?: Pick<User, "id" | "name" | "image">;
 }
 
 export interface BoardWithColumns extends Board {

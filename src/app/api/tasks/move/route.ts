@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { getBoardAccess, canWrite } from "@/lib/board-access";
+import { logActivity } from "@/lib/activity";
 
 const moveSchema = z.object({
     taskId: z.string().min(1, "Task ID is required"),
@@ -25,19 +27,21 @@ export async function PATCH(request: NextRequest) {
 
         const currentTask = await prisma.task.findUnique({
             where: { id: taskId },
-            include: { column: { include: { board: { select: { userId: true } } } } },
+            include: { column: { select: { boardId: true } } },
         });
+        if (!currentTask) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-        if (!currentTask || currentTask.column.board.userId !== session.user.id) {
+        const boardId = currentTask.column.boardId;
+        const access = await getBoardAccess(boardId, session.user.id);
+        if (!canWrite(access)) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
         const targetColumn = await prisma.column.findUnique({
             where: { id: targetColumnId },
-            include: { board: { select: { userId: true } } },
+            select: { boardId: true },
         });
-
-        if (!targetColumn || targetColumn.board.userId !== session.user.id) {
+        if (!targetColumn || targetColumn.boardId !== boardId) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
@@ -77,6 +81,8 @@ export async function PATCH(request: NextRequest) {
                 await tx.task.update({ where: { id: taskId }, data: { order: newOrder } });
             }
         });
+
+        await logActivity(boardId, session.user.id, "TASK_MOVED", { content: currentTask.content });
 
         const updatedTask = await prisma.task.findUnique({ where: { id: taskId } });
 

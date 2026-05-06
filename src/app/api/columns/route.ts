@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
+import { getBoardAccess, canWrite } from "@/lib/board-access";
+import { logActivity } from "@/lib/activity";
 
 const createSchema = z.object({
     boardId: z.string().min(1, "Board ID is required"),
@@ -22,12 +24,8 @@ export async function POST(request: NextRequest) {
 
         const { boardId, title } = parsed.data;
 
-        const board = await prisma.board.findUnique({
-            where: { id: boardId },
-            select: { userId: true },
-        });
-
-        if (!board || board.userId !== session.user.id) {
+        const access = await getBoardAccess(boardId, session.user.id);
+        if (!canWrite(access)) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
@@ -44,6 +42,8 @@ export async function POST(request: NextRequest) {
             },
             include: { tasks: true },
         });
+
+        await logActivity(boardId, session.user.id, "COLUMN_CREATED", { title });
 
         return NextResponse.json(column, { status: 201 });
     } catch (error) {

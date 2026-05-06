@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { sendVerificationEmail } from "@/lib/email";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
 
 const signupSchema = z.object({
     name: z.string().min(1).optional(),
@@ -13,6 +14,10 @@ const signupSchema = z.object({
 
 export async function POST(request: NextRequest) {
     try {
+        if (!rateLimit(`signup:${getClientIp(request)}`, 5, 60 * 60 * 1000)) {
+            return NextResponse.json({ error: "Too many requests. Try again later." }, { status: 429 });
+        }
+
         const parsed = signupSchema.safeParse(await request.json());
         if (!parsed.success) {
             return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });

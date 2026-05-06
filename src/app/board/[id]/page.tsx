@@ -39,10 +39,17 @@ export default async function BoardPage({ params }: BoardPageProps) {
                     },
                 },
             },
+            members: {
+                where: { userId: session.user.id },
+                select: { role: true },
+            },
         },
     });
 
-    if (!board || board.userId !== session.user.id) {
+    const isOwner = board?.userId === session.user.id;
+    const isMember = (board?.members.length ?? 0) > 0;
+
+    if (!board || (!isOwner && !isMember)) {
         notFound();
     }
 
@@ -65,5 +72,5 @@ export default async function BoardPage({ params }: BoardPageProps) {
         })),
     };
 
-    return <BoardClient initialBoard={serializedBoard} />;
+    return <BoardClient initialBoard={serializedBoard} isOwner={isOwner} />;
 }
