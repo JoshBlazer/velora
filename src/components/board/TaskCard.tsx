@@ -188,24 +188,33 @@ export function TaskCard({ task, boardLabels, onDragStart, onUpdate, onDelete, o
             draggable
             onDragStart={(e) => onDragStart(e as unknown as React.DragEvent, task.id)}
             className="group cursor-grab active:cursor-grabbing"
+            aria-label={task.content}
         >
             <GlassPanel intensity="light" hoverable className="relative p-3">
                 <button
                     onClick={(e) => { e.stopPropagation(); setIsDeleting(true); }}
+                    aria-label={`Delete task: ${task.content}`}
                     className="absolute right-2 top-2 rounded p-1 text-velora-text-subtle opacity-0 transition-all hover:bg-red-500/20 hover:text-red-400 group-hover:opacity-100"
                 >
-                    <Trash2 className="h-3.5 w-3.5" />
+                    <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
                 </button>
 
                 <div className="mb-2 flex items-center justify-between">
-                    <span className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${colors.bg} ${colors.text}`}>
+                    <span
+                        className={`inline-block rounded px-2 py-0.5 text-xs font-medium ${colors.bg} ${colors.text}`}
+                        aria-label={`Priority: ${task.priority}`}
+                    >
                         {task.priority}
                     </span>
-                    <GripVertical className="h-4 w-4 text-velora-text-subtle opacity-0 transition-opacity group-hover:opacity-100" />
+                    <GripVertical className="h-4 w-4 text-velora-text-subtle opacity-0 transition-opacity group-hover:opacity-100" aria-hidden="true" />
                 </div>
 
                 <p
                     onClick={() => setIsEditing(true)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => e.key === "Enter" && setIsEditing(true)}
+                    aria-label={`Edit task: ${task.content}`}
                     className="cursor-text text-sm leading-relaxed text-white transition-colors hover:text-velora-text-muted"
                 >
                     {task.content}
@@ -213,14 +222,14 @@ export function TaskCard({ task, boardLabels, onDragStart, onUpdate, onDelete, o
 
                 {/* Labels */}
                 {taskLabels.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-1">
+                    <div className="mt-2 flex flex-wrap gap-1" aria-label="Labels">
                         {taskLabels.map((label) => (
                             <span
                                 key={label.id}
                                 className="flex items-center gap-1 rounded-full px-1.5 py-0.5 text-xs"
                                 style={{ background: `${label.color}22`, color: label.color }}
                             >
-                                <span className="h-1.5 w-1.5 rounded-full" style={{ background: label.color }} />
+                                <span className="h-1.5 w-1.5 rounded-full" style={{ background: label.color }} aria-hidden="true" />
                                 {label.name}
                             </span>
                         ))}
@@ -229,8 +238,11 @@ export function TaskCard({ task, boardLabels, onDragStart, onUpdate, onDelete, o
 
                 {/* Due Date */}
                 {dueDateStr && (
-                    <div className={`mt-2 flex items-center gap-1 text-xs ${overdue ? "text-red-400" : "text-velora-text-subtle"}`}>
-                        <Calendar className="h-3 w-3" />
+                    <div
+                        className={`mt-2 flex items-center gap-1 text-xs ${overdue ? "text-red-400" : "text-velora-text-subtle"}`}
+                        aria-label={`Due ${dueDateStr}${overdue ? " — overdue" : ""}`}
+                    >
+                        <Calendar className="h-3 w-3" aria-hidden="true" />
                         {dueDateStr}
                     </div>
                 )}

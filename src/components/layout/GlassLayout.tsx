@@ -18,6 +18,12 @@ export function GlassLayout({ children, className, background }: GlassLayoutProp
             )}
             style={background ? { background } : undefined}
         >
+            <a
+                href="#main-content"
+                className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-velora-cyan focus:px-4 focus:py-2 focus:text-white focus:outline-none"
+            >
+                Skip to content
+            </a>
             <div className="pointer-events-none absolute inset-0 overflow-hidden">
                 <div
                     className="absolute -right-40 -top-40 h-[600px] w-[600px] rounded-full opacity-30 blur-[120px]"
@@ -32,7 +38,7 @@ export function GlassLayout({ children, className, background }: GlassLayoutProp
                     style={{ background: "radial-gradient(circle, #22d3ee 0%, transparent 70%)" }}
                 />
             </div>
-            <div className="relative z-10">{children}</div>
+            <div id="main-content" className="relative z-10">{children}</div>
         </div>
     );
 }

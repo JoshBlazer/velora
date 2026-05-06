@@ -10,10 +10,12 @@ import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Column } from "@/components/board/Column";
 import { BoardSettings } from "@/components/board/BoardSettings";
 import { KeyboardShortcuts } from "@/components/board/KeyboardShortcuts";
+import { SearchFilterBar } from "@/components/board/SearchFilterBar";
 import { AddTaskFormHandle } from "@/components/board/AddTaskForm";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { BoardWithColumns, ColumnWithTasks, Label, Task } from "@/lib/types";
 import { Priority } from "@prisma/client";
+import { isOverdue } from "@/lib/date-utils";
 
 interface BoardClientProps {
     initialBoard: BoardWithColumns;
@@ -23,6 +25,43 @@ export function BoardClient({ initialBoard }: BoardClientProps) {
     const [board, setBoard] = useState<BoardWithColumns>(initialBoard);
     const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
     const firstColumnAddFormRef = useRef<AddTaskFormHandle | null>(null);
+
+    const [searchQuery, setSearchQuery] = useState("");
+    const [priorityFilter, setPriorityFilter] = useState<Priority | null>(null);
+    const [activeLabelId, setActiveLabelId] = useState<string | null>(null);
+    const [overdueOnly, setOverdueOnly] = useState(false);
+
+    const filterActive = !!(searchQuery || priorityFilter || activeLabelId || overdueOnly);
+
+    const getVisibleTaskIds = useCallback(
+        (tasks: Task[]): Set<string> | undefined => {
+            if (!filterActive) return undefined;
+            return new Set(
+                tasks
+                    .filter((t) => {
+                        if (searchQuery && !t.content.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+                        if (priorityFilter && t.priority !== priorityFilter) return false;
+                        if (activeLabelId && !(t.labels ?? []).some((l) => l.id === activeLabelId)) return false;
+                        if (overdueOnly && !isOverdue(t.dueDate)) return false;
+                        return true;
+                    })
+                    .map((t) => t.id)
+            );
+        },
+        [filterActive, searchQuery, priorityFilter, activeLabelId, overdueOnly]
+    );
+
+    const allTasks = board.columns.flatMap((c) => c.tasks);
+    const totalCount = allTasks.length;
+    const matchCount = filterActive
+        ? allTasks.filter((t) => {
+              if (searchQuery && !t.content.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+              if (priorityFilter && t.priority !== priorityFilter) return false;
+              if (activeLabelId && !(t.labels ?? []).some((l) => l.id === activeLabelId)) return false;
+              if (overdueOnly && !isOverdue(t.dueDate)) return false;
+              return true;
+          }).length
+        : totalCount;
 
     const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => {
         setDraggedTaskId(taskId);
@@ -493,6 +532,21 @@ export function BoardClient({ initialBoard }: BoardClientProps) {
                     </div>
                 </motion.header>
 
+                {/* Search & Filter */}
+                <SearchFilterBar
+                    query={searchQuery}
+                    onQueryChange={setSearchQuery}
+                    priority={priorityFilter}
+                    onPriorityChange={setPriorityFilter}
+                    activeLabelId={activeLabelId}
+                    onLabelChange={setActiveLabelId}
+                    overdueOnly={overdueOnly}
+                    onOverdueChange={setOverdueOnly}
+                    boardLabels={board.labels}
+                    matchCount={matchCount}
+                    totalCount={totalCount}
+                />
+
                 {/* Board Columns */}
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -514,6 +568,8 @@ export function BoardClient({ initialBoard }: BoardClientProps) {
                                 column={column}
                                 boardLabels={board.labels}
                                 addFormRef={index === 0 ? firstColumnAddFormRef : undefined}
+                                visibleTaskIds={getVisibleTaskIds(column.tasks)}
+                                filterActive={filterActive}
                                 onDragStart={handleDragStart}
                                 onDragOver={handleDragOver}
                                 onDrop={handleDrop}

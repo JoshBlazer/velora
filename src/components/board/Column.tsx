@@ -13,6 +13,8 @@ interface ColumnProps {
     column: ColumnWithTasks;
     boardLabels: Label[];
     addFormRef?: React.RefObject<AddTaskFormHandle | null>;
+    visibleTaskIds?: Set<string>;
+    filterActive?: boolean;
     onDragStart: (e: React.DragEvent, taskId: string) => void;
     onDragOver: (e: React.DragEvent) => void;
     onDrop: (e: React.DragEvent, columnId: string, insertIndex: number) => void;
@@ -28,6 +30,8 @@ export function Column({
     column,
     boardLabels,
     addFormRef,
+    visibleTaskIds,
+    filterActive,
     onDragStart,
     onDragOver,
     onDrop,
@@ -38,6 +42,10 @@ export function Column({
     onRenameColumn,
     onDeleteColumn,
 }: ColumnProps) {
+    const displayTasks = visibleTaskIds
+        ? column.tasks.filter((t) => visibleTaskIds.has(t.id))
+        : column.tasks;
+    const visibleCount = displayTasks.length;
     const [isDragOver, setIsDragOver] = useState(false);
     const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
     const [isEditing, setIsEditing] = useState(false);
@@ -86,10 +94,12 @@ export function Column({
     return (
         <GlassPanel
             intensity="medium"
-            className={`flex h-full min-h-[500px] flex-col p-4 transition-all ${isDragOver ? "ring-2 ring-velora-cyan/50" : ""}`}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
-            onDrop={handleDrop}
+            role="region"
+            aria-label={column.title}
+            className={`flex h-full min-h-[500px] flex-col p-4 transition-all ${isDragOver && !filterActive ? "ring-2 ring-velora-cyan/50" : ""}`}
+            onDragOver={filterActive ? undefined : handleDragOver}
+            onDragLeave={filterActive ? undefined : handleDragLeave}
+            onDrop={filterActive ? undefined : handleDrop}
         >
             {/* Column Header */}
             <div className="mb-4 flex items-center justify-between">
@@ -128,16 +138,22 @@ export function Column({
                             {column.title}
                         </h3>
                         <div className="flex items-center gap-2">
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-medium text-velora-text-subtle">
-                                {column.tasks.length}
+                            <span
+                                className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10 text-xs font-medium text-velora-text-subtle"
+                                aria-label={filterActive ? `${visibleCount} of ${column.tasks.length} tasks` : `${column.tasks.length} tasks`}
+                            >
+                                {filterActive ? `${visibleCount}/${column.tasks.length}` : column.tasks.length}
                             </span>
                             <div className="relative">
                                 <button
                                     onClick={() => setIsMenuOpen(!isMenuOpen)}
+                                    aria-label={`Column options for ${column.title}`}
+                                    aria-expanded={isMenuOpen}
+                                    aria-haspopup="menu"
                                     className="rounded p-1 text-velora-text-subtle opacity-0 transition-opacity hover:bg-white/10 hover:text-white [.group:hover_&]:opacity-100"
                                     style={{ opacity: isMenuOpen ? 1 : undefined }}
                                 >
-                                    <MoreVertical className="h-4 w-4" />
+                                    <MoreVertical className="h-4 w-4" aria-hidden="true" />
                                 </button>
 
                                 {isMenuOpen && (
@@ -199,12 +215,13 @@ export function Column({
             </div>
 
             {/* Tasks */}
-            <div className="flex-1 space-y-3 overflow-y-auto">
+            <div className="flex-1 space-y-3 overflow-y-auto" role="list" aria-label={`Tasks in ${column.title}`}>
                 <AnimatePresence mode="popLayout">
-                    {column.tasks.map((task, index) => (
+                    {displayTasks.map((task, index) => (
                         <div
                             key={task.id}
-                            onDragOver={(e) => {
+                            role="listitem"
+                            onDragOver={filterActive ? undefined : (e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 setIsDragOver(true);
@@ -212,13 +229,13 @@ export function Column({
                                 setDragOverIndex(e.clientY < rect.top + rect.height / 2 ? index : index + 1);
                             }}
                         >
-                            {isDragOver && dragOverIndex === index && (
-                                <div className="mb-2 h-0.5 w-full rounded-full bg-velora-cyan" />
+                            {!filterActive && isDragOver && dragOverIndex === index && (
+                                <div className="mb-2 h-0.5 w-full rounded-full bg-velora-cyan" aria-hidden="true" />
                             )}
                             <TaskCard
                                 task={task}
                                 boardLabels={boardLabels}
-                                onDragStart={onDragStart}
+                                onDragStart={filterActive ? () => {} : onDragStart}
                                 onUpdate={onUpdateTask}
                                 onDelete={onDeleteTask}
                                 onToggleLabel={onToggleTaskLabel}
@@ -227,8 +244,14 @@ export function Column({
                     ))}
                 </AnimatePresence>
 
-                {isDragOver && dragOverIndex === column.tasks.length && (
-                    <div className="h-0.5 w-full rounded-full bg-velora-cyan" />
+                {!filterActive && isDragOver && dragOverIndex === column.tasks.length && (
+                    <div className="h-0.5 w-full rounded-full bg-velora-cyan" aria-hidden="true" />
+                )}
+
+                {filterActive && displayTasks.length === 0 && (
+                    <p className="py-4 text-center text-sm text-velora-text-subtle" role="status">
+                        No matching tasks
+                    </p>
                 )}
             </div>
 
