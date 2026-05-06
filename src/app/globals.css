@@ -1,26 +1,97 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
+/* Velora Design System - CSS Theme Configuration */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* Velora Color Palette */
+  --color-velora-dark: #0f172a;
+  --color-velora-darker: #020617;
+  --color-velora-cyan: #22d3ee;
+  --color-velora-pink: #f472b6;
+  --color-velora-purple: #a78bfa;
+
+  /* Text Colors */
+  --color-velora-text: #ffffff;
+  --color-velora-text-muted: #cbd5e1;
+  --color-velora-text-subtle: #94a3b8;
+
+  /* Glass Effect Colors */
+  --color-glass-bg: rgba(255, 255, 255, 0.05);
+  --color-glass-border: rgba(255, 255, 255, 0.1);
+
+  /* Background & Foreground */
+  --color-background: #0f172a;
+  --color-foreground: #ffffff;
+
+  /* Font Family */
+  --font-sans: var(--font-plus-jakarta);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Light Theme Override */
+[data-theme="light"] {
+  --color-velora-dark: #f8fafc;
+  --color-velora-darker: #e2e8f0;
+  --color-velora-cyan: #0891b2;
+  --color-velora-pink: #db2777;
+  --color-velora-purple: #7c3aed;
+
+  --color-velora-text: #0f172a;
+  --color-velora-text-muted: #475569;
+  --color-velora-text-subtle: #64748b;
+
+  --color-glass-bg: rgba(0, 0, 0, 0.05);
+  --color-glass-border: rgba(0, 0, 0, 0.1);
+
+  --color-background: #f8fafc;
+  --color-foreground: #0f172a;
+}
+
+/* Base Styles */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Selection Styling */
+::selection {
+  background: rgba(34, 211, 238, 0.3);
+  color: white;
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
 }

@@ -1,0 +1,152 @@
+// Velora Database Schema
+// A creative workflow platform for visual artists
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  email         String    @unique
+  emailVerified DateTime?
+  password      String?   // Hashed password for credentials auth
+  name          String?
+  image         String?   // Avatar URL
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  boards   Board[]
+  accounts Account[]
+  sessions Session[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(uuid()) @db.Uuid
+  userId            String  @db.Uuid
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(uuid()) @db.Uuid
+  sessionToken String   @unique
+  userId       String   @db.Uuid
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+model Board {
+  id         String   @id @default(uuid()) @db.Uuid
+  title      String
+  background String?  // Gradient hex or image URL
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Relations
+  userId  String   @db.Uuid
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  columns Column[]
+  labels  Label[]
+
+  @@index([userId])
+  @@map("boards")
+}
+
+model Column {
+  id        String   @id @default(uuid()) @db.Uuid
+  title     String
+  order     Int      // Position on the board (for drag-and-drop ordering)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  boardId String @db.Uuid
+  board   Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  tasks   Task[]
+
+  @@index([boardId])
+  @@map("columns")
+}
+
+model Task {
+  id        String    @id @default(uuid()) @db.Uuid
+  content   String
+  priority  Priority  @default(MEDIUM)
+  dueDate   DateTime? // Optional due date
+  order     Int       // Position within the column (for drag-and-drop ordering)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  columnId String  @db.Uuid
+  column   Column  @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  labels   Label[] // Many-to-many with labels
+
+  @@index([columnId])
+  @@map("tasks")
+}
+
+model Label {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  color     String   // Hex color code
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  boardId String @db.Uuid
+  board   Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  tasks   Task[] // Many-to-many with tasks
+
+  @@index([boardId])
+  @@map("labels")
+}
+
+
