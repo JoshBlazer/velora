@@ -2,8 +2,8 @@
 
 import { useRef, useState, useCallback } from "react";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
-import { Sparkles, ArrowLeft, Plus, Activity } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Sparkles, ArrowLeft, Plus, Activity, BarChart2, CheckSquare } from "lucide-react";
 import Link from "next/link";
 import { GlassLayout } from "@/components/layout/GlassLayout";
 import { GlassPanel } from "@/components/ui/GlassPanel";
@@ -12,21 +12,30 @@ import { BoardSettings } from "@/components/board/BoardSettings";
 import { KeyboardShortcuts } from "@/components/board/KeyboardShortcuts";
 import { SearchFilterBar } from "@/components/board/SearchFilterBar";
 import { ActivityPanel } from "@/components/board/ActivityPanel";
+import { AnalyticsPanel } from "@/components/board/AnalyticsPanel";
+import { TaskDetailPanel } from "@/components/board/TaskDetailPanel";
+import { BulkActionsBar } from "@/components/board/BulkActionsBar";
 import { AddTaskFormHandle } from "@/components/board/AddTaskForm";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { BoardWithColumns, ColumnWithTasks, Label, Task } from "@/lib/types";
 import { Priority } from "@prisma/client";
 import { isOverdue } from "@/lib/date-utils";
+import { useBoardSync } from "@/hooks/useBoardSync";
 
 interface BoardClientProps {
     initialBoard: BoardWithColumns;
     isOwner: boolean;
+    currentUserId: string;
 }
 
-export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
+export function BoardClient({ initialBoard, isOwner, currentUserId }: BoardClientProps) {
     const [board, setBoard] = useState<BoardWithColumns>(initialBoard);
     const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
     const [activityOpen, setActivityOpen] = useState(false);
+    const [analyticsOpen, setAnalyticsOpen] = useState(false);
+    const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
+    const [bulkMode, setBulkMode] = useState(false);
+    const [selectedTaskIds, setSelectedTaskIds] = useState<Set<string>>(new Set());
     const firstColumnAddFormRef = useRef<AddTaskFormHandle | null>(null);
 
     const [searchQuery, setSearchQuery] = useState("");
@@ -35,6 +44,32 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
     const [overdueOnly, setOverdueOnly] = useState(false);
 
     const filterActive = !!(searchQuery || priorityFilter || activeLabelId || overdueOnly);
+
+    // Real-time sync
+    const handleRefresh = useCallback(async () => {
+        try {
+            const res = await fetch(`/api/boards/${board.id}`);
+            if (!res.ok) return;
+            const updated = await res.json();
+            // Preserve existing optimistic state shape, only update from server
+            setBoard((prev) => ({
+                ...updated,
+                labels: updated.labels ?? prev.labels,
+                members: updated.members ?? prev.members,
+                columns: (updated.columns ?? prev.columns).map((col: ColumnWithTasks) => ({
+                    ...col,
+                    tasks: col.tasks.map((t: Task) => ({
+                        ...t,
+                        commentCount: t.commentCount ?? 0,
+                    })),
+                })),
+            }));
+        } catch {
+            // ignore — we'll get the next poll
+        }
+    }, [board.id]);
+
+    useBoardSync(board.id, handleRefresh);
 
     const getVisibleTaskIds = useCallback(
         (tasks: Task[]): Set<string> | undefined => {
@@ -66,6 +101,9 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
           }).length
         : totalCount;
 
+    const detailTask = detailTaskId ? allTasks.find((t) => t.id === detailTaskId) ?? null : null;
+
+    // ─── Drag & Drop ───────────────────────────────────────────────────
     const handleDragStart = useCallback((e: React.DragEvent, taskId: string) => {
         setDraggedTaskId(taskId);
         e.dataTransfer.effectAllowed = "move";
@@ -95,7 +133,6 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
 
             const isSameColumn = sourceColumn.id === targetColumnId;
 
-            // For same-column reorder, skip if position didn't change
             if (isSameColumn) {
                 const currentIndex = sourceColumn.tasks.findIndex((t) => t.id === taskId);
                 if (insertIndex === currentIndex || insertIndex === currentIndex + 1) {
@@ -104,7 +141,6 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
                 }
             }
 
-            // Optimistic update
             setBoard((prev) => {
                 const newColumns = prev.columns.map((col) => {
                     if (isSameColumn && col.id === targetColumnId) {
@@ -137,8 +173,7 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
                     body: JSON.stringify({ taskId, targetColumnId, newOrder: insertIndex }),
                 });
                 if (!res.ok) throw new Error();
-            } catch (error) {
-                console.error("Failed to move task:", error);
+            } catch {
                 toast.error("Failed to move task");
                 setBoard(initialBoard);
             }
@@ -146,19 +181,14 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
         [board, initialBoard]
     );
 
+    // ─── Tasks ─────────────────────────────────────────────────────────
     const handleAddTask = useCallback(
         async (columnId: string, content: string, priority: Priority) => {
             const tempId = `temp-${Date.now()}`;
             const newTask: Task = {
-                id: tempId,
-                content,
-                priority,
-                order: 0,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                columnId,
-                dueDate: null,
-                labels: [],
+                id: tempId, content, priority, order: 0,
+                createdAt: new Date(), updatedAt: new Date(),
+                columnId, dueDate: null, labels: [], commentCount: 0,
             };
 
             setBoard((prev) => ({
@@ -184,8 +214,7 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
                             : col
                     ),
                 }));
-            } catch (error) {
-                console.error("Failed to create task:", error);
+            } catch {
                 toast.error("Failed to create task");
                 setBoard((prev) => ({
                     ...prev,
@@ -201,19 +230,16 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
     );
 
     const handleUpdateTask = useCallback(
-        async (taskId: string, content: string, priority: Priority, dueDate: Date | null) => {
-            let originalTask: Task | undefined;
-            for (const col of board.columns) {
-                const found = col.tasks.find((t) => t.id === taskId);
-                if (found) { originalTask = found; break; }
-            }
+        async (taskId: string, content: string, priority: Priority, dueDate: Date | null, assigneeId: string | null = null) => {
+            const boardMembers = board.members ?? [];
+            const assignee = assigneeId ? boardMembers.find((m) => m.userId === assigneeId)?.user ?? null : null;
 
             setBoard((prev) => ({
                 ...prev,
                 columns: prev.columns.map((col) => ({
                     ...col,
                     tasks: col.tasks.map((t) =>
-                        t.id === taskId ? { ...t, content, priority, dueDate, updatedAt: new Date() } : t
+                        t.id === taskId ? { ...t, content, priority, dueDate, assigneeId, assignee, updatedAt: new Date() } : t
                     ),
                 })),
             }));
@@ -223,39 +249,30 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        id: taskId,
-                        content,
-                        priority,
+                        id: taskId, content, priority,
                         dueDate: dueDate ? dueDate.toISOString() : null,
+                        assigneeId,
                     }),
                 });
                 if (!res.ok) throw new Error();
-            } catch (error) {
-                console.error("Failed to update task:", error);
+                const updated = await res.json();
+                setBoard((prev) => ({
+                    ...prev,
+                    columns: prev.columns.map((col) => ({
+                        ...col,
+                        tasks: col.tasks.map((t) => (t.id === taskId ? { ...t, ...updated } : t)),
+                    })),
+                }));
+            } catch {
                 toast.error("Failed to update task");
-                if (originalTask) {
-                    setBoard((prev) => ({
-                        ...prev,
-                        columns: prev.columns.map((col) => ({
-                            ...col,
-                            tasks: col.tasks.map((t) => (t.id === taskId ? originalTask! : t)),
-                        })),
-                    }));
-                }
+                setBoard(initialBoard);
             }
         },
-        [board.columns]
+        [board.members, initialBoard]
     );
 
     const handleDeleteTask = useCallback(
         async (taskId: string) => {
-            let originalTask: Task | undefined;
-            let originalColumnId: string | undefined;
-            for (const col of board.columns) {
-                const found = col.tasks.find((t) => t.id === taskId);
-                if (found) { originalTask = found; originalColumnId = col.id; break; }
-            }
-
             setBoard((prev) => ({
                 ...prev,
                 columns: prev.columns.map((col) => ({
@@ -263,26 +280,17 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
                     tasks: col.tasks.filter((t) => t.id !== taskId),
                 })),
             }));
+            setSelectedTaskIds((prev) => { const n = new Set(prev); n.delete(taskId); return n; });
 
             try {
                 const res = await fetch(`/api/tasks?id=${taskId}`, { method: "DELETE" });
                 if (!res.ok) throw new Error();
-            } catch (error) {
-                console.error("Failed to delete task:", error);
+            } catch {
                 toast.error("Failed to delete task");
-                if (originalTask && originalColumnId) {
-                    setBoard((prev) => ({
-                        ...prev,
-                        columns: prev.columns.map((col) =>
-                            col.id === originalColumnId
-                                ? { ...col, tasks: [...col.tasks, originalTask!] }
-                                : col
-                        ),
-                    }));
-                }
+                setBoard(initialBoard);
             }
         },
-        [board.columns]
+        [initialBoard]
     );
 
     const handleToggleTaskLabel = useCallback(
@@ -314,28 +322,12 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
                     body: assigned ? JSON.stringify({ labelId }) : undefined,
                 });
                 if (!res.ok) throw new Error();
-            } catch (error) {
-                console.error("Failed to toggle label:", error);
+            } catch {
                 toast.error("Failed to update label");
-                setBoard((prev) => ({
-                    ...prev,
-                    columns: prev.columns.map((col) => ({
-                        ...col,
-                        tasks: col.tasks.map((t) =>
-                            t.id === taskId
-                                ? {
-                                    ...t,
-                                    labels: assigned
-                                        ? (t.labels ?? []).filter((l) => l.id !== labelId)
-                                        : [...(t.labels ?? []), label],
-                                }
-                                : t
-                        ),
-                    })),
-                }));
+                setBoard(initialBoard);
             }
         },
-        [board.labels]
+        [board.labels, initialBoard]
     );
 
     const handleAddLabel = useCallback(
@@ -360,8 +352,7 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
                     ...prev,
                     labels: prev.labels.map((l) => (l.id === tempId ? created : l)),
                 }));
-            } catch (error) {
-                console.error("Failed to create label:", error);
+            } catch {
                 toast.error("Failed to create label");
                 setBoard((prev) => ({ ...prev, labels: prev.labels.filter((l) => l.id !== tempId) }));
             }
@@ -388,12 +379,9 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
             try {
                 const res = await fetch(`/api/labels/${labelId}`, { method: "DELETE" });
                 if (!res.ok) throw new Error();
-            } catch (error) {
-                console.error("Failed to delete label:", error);
+            } catch {
                 toast.error("Failed to delete label");
-                if (label) {
-                    setBoard((prev) => ({ ...prev, labels: [...prev.labels, label] }));
-                }
+                if (label) setBoard((prev) => ({ ...prev, labels: [...prev.labels, label] }));
             }
         },
         [board.labels]
@@ -403,9 +391,7 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
         async (columnId: string, title: string) => {
             setBoard((prev) => ({
                 ...prev,
-                columns: prev.columns.map((col) =>
-                    col.id === columnId ? { ...col, title } : col
-                ),
+                columns: prev.columns.map((col) => col.id === columnId ? { ...col, title } : col),
             }));
 
             try {
@@ -415,8 +401,7 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
                     body: JSON.stringify({ title }),
                 });
                 if (!res.ok) throw new Error();
-            } catch (error) {
-                console.error("Failed to rename column:", error);
+            } catch {
                 toast.error("Failed to rename column");
                 setBoard(initialBoard);
             }
@@ -427,16 +412,12 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
     const handleDeleteColumn = useCallback(
         async (columnId: string) => {
             const originalColumns = board.columns;
-            setBoard((prev) => ({
-                ...prev,
-                columns: prev.columns.filter((col) => col.id !== columnId),
-            }));
+            setBoard((prev) => ({ ...prev, columns: prev.columns.filter((col) => col.id !== columnId) }));
 
             try {
                 const res = await fetch(`/api/columns/${columnId}`, { method: "DELETE" });
                 if (!res.ok) throw new Error();
-            } catch (error) {
-                console.error("Failed to delete column:", error);
+            } catch {
                 toast.error("Failed to delete column");
                 setBoard((prev) => ({ ...prev, columns: originalColumns }));
             }
@@ -447,13 +428,8 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
     const handleAddColumn = useCallback(async () => {
         const tempId = `temp-col-${Date.now()}`;
         const newColumn: ColumnWithTasks = {
-            id: tempId,
-            title: "New Column",
-            order: board.columns.length,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            boardId: board.id,
-            tasks: [],
+            id: tempId, title: "New Column", order: board.columns.length,
+            createdAt: new Date(), updatedAt: new Date(), boardId: board.id, tasks: [],
         };
 
         setBoard((prev) => ({ ...prev, columns: [...prev.columns, newColumn] }));
@@ -470,15 +446,116 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
                 ...prev,
                 columns: prev.columns.map((col) => (col.id === tempId ? created : col)),
             }));
-        } catch (error) {
-            console.error("Failed to create column:", error);
+        } catch {
             toast.error("Failed to create column");
-            setBoard((prev) => ({
-                ...prev,
-                columns: prev.columns.filter((col) => col.id !== tempId),
-            }));
+            setBoard((prev) => ({ ...prev, columns: prev.columns.filter((col) => col.id !== tempId) }));
         }
     }, [board.id, board.columns.length]);
+
+    // ─── Bulk Actions ───────────────────────────────────────────────────
+    const toggleBulkMode = () => {
+        setBulkMode((v) => !v);
+        setSelectedTaskIds(new Set());
+    };
+
+    const handleToggleSelect = useCallback((taskId: string) => {
+        setSelectedTaskIds((prev) => {
+            const next = new Set(prev);
+            if (next.has(taskId)) next.delete(taskId);
+            else next.add(taskId);
+            return next;
+        });
+    }, []);
+
+    const handleBulkDelete = useCallback(async () => {
+        const taskIds = Array.from(selectedTaskIds);
+        setBoard((prev) => ({
+            ...prev,
+            columns: prev.columns.map((col) => ({
+                ...col,
+                tasks: col.tasks.filter((t) => !selectedTaskIds.has(t.id)),
+            })),
+        }));
+        setSelectedTaskIds(new Set());
+        setBulkMode(false);
+
+        try {
+            const res = await fetch("/api/tasks/bulk", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "delete", taskIds, boardId: board.id }),
+            });
+            if (!res.ok) throw new Error();
+        } catch {
+            toast.error("Failed to delete tasks");
+            setBoard(initialBoard);
+        }
+    }, [selectedTaskIds, board.id, initialBoard]);
+
+    const handleBulkMove = useCallback(async (targetColumnId: string) => {
+        const taskIds = Array.from(selectedTaskIds);
+        const movedTasks: Task[] = [];
+
+        setBoard((prev) => {
+            const newColumns = prev.columns.map((col) => {
+                const tasks = col.tasks.filter((t) => {
+                    if (selectedTaskIds.has(t.id)) { movedTasks.push(t); return false; }
+                    return true;
+                });
+                return { ...col, tasks };
+            });
+            return {
+                ...prev,
+                columns: newColumns.map((col) =>
+                    col.id === targetColumnId
+                        ? { ...col, tasks: [...col.tasks, ...movedTasks.map((t) => ({ ...t, columnId: targetColumnId }))] }
+                        : col
+                ),
+            };
+        });
+        setSelectedTaskIds(new Set());
+        setBulkMode(false);
+
+        try {
+            const res = await fetch("/api/tasks/bulk", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "move", taskIds, boardId: board.id, targetColumnId }),
+            });
+            if (!res.ok) throw new Error();
+        } catch {
+            toast.error("Failed to move tasks");
+            setBoard(initialBoard);
+        }
+    }, [selectedTaskIds, board.id, initialBoard]);
+
+    const handleBulkReprioritize = useCallback(async (priority: Priority) => {
+        const taskIds = Array.from(selectedTaskIds);
+
+        setBoard((prev) => ({
+            ...prev,
+            columns: prev.columns.map((col) => ({
+                ...col,
+                tasks: col.tasks.map((t) => selectedTaskIds.has(t.id) ? { ...t, priority } : t),
+            })),
+        }));
+        setSelectedTaskIds(new Set());
+        setBulkMode(false);
+
+        try {
+            const res = await fetch("/api/tasks/bulk", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ action: "reprioritize", taskIds, boardId: board.id, priority }),
+            });
+            if (!res.ok) throw new Error();
+        } catch {
+            toast.error("Failed to reprioritize tasks");
+            setBoard(initialBoard);
+        }
+    }, [selectedTaskIds, board.id, initialBoard]);
+
+    const boardMembers = board.members ?? [];
 
     return (
         <GlassLayout background={board.background ?? undefined}>
@@ -521,7 +598,21 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
                                 </>
                             )}
                             <button
-                                onClick={() => setActivityOpen(true)}
+                                onClick={toggleBulkMode}
+                                title="Bulk select"
+                                className={`rounded-lg p-2 transition-colors ${bulkMode ? "bg-velora-cyan/20 text-velora-cyan" : "text-velora-text-muted hover:bg-white/10 hover:text-white"}`}
+                            >
+                                <CheckSquare className="h-5 w-5" />
+                            </button>
+                            <button
+                                onClick={() => { setAnalyticsOpen(true); setActivityOpen(false); }}
+                                title="Analytics"
+                                className="rounded-lg p-2 text-velora-text-muted transition-colors hover:bg-white/10 hover:text-white"
+                            >
+                                <BarChart2 className="h-5 w-5" />
+                            </button>
+                            <button
+                                onClick={() => { setActivityOpen(true); setAnalyticsOpen(false); }}
                                 title="Activity log"
                                 className="rounded-lg p-2 text-velora-text-muted transition-colors hover:bg-white/10 hover:text-white"
                             >
@@ -544,19 +635,21 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
                 </motion.header>
 
                 {/* Search & Filter */}
-                <SearchFilterBar
-                    query={searchQuery}
-                    onQueryChange={setSearchQuery}
-                    priority={priorityFilter}
-                    onPriorityChange={setPriorityFilter}
-                    activeLabelId={activeLabelId}
-                    onLabelChange={setActiveLabelId}
-                    overdueOnly={overdueOnly}
-                    onOverdueChange={setOverdueOnly}
-                    boardLabels={board.labels}
-                    matchCount={matchCount}
-                    totalCount={totalCount}
-                />
+                {!bulkMode && (
+                    <SearchFilterBar
+                        query={searchQuery}
+                        onQueryChange={setSearchQuery}
+                        priority={priorityFilter}
+                        onPriorityChange={setPriorityFilter}
+                        activeLabelId={activeLabelId}
+                        onLabelChange={setActiveLabelId}
+                        overdueOnly={overdueOnly}
+                        onOverdueChange={setOverdueOnly}
+                        boardLabels={board.labels}
+                        matchCount={matchCount}
+                        totalCount={totalCount}
+                    />
+                )}
 
                 {/* Board Columns */}
                 <motion.div
@@ -581,40 +674,80 @@ export function BoardClient({ initialBoard, isOwner }: BoardClientProps) {
                                 addFormRef={index === 0 ? firstColumnAddFormRef : undefined}
                                 visibleTaskIds={getVisibleTaskIds(column.tasks)}
                                 filterActive={filterActive}
+                                selectedTaskIds={selectedTaskIds}
+                                bulkMode={bulkMode}
                                 onDragStart={handleDragStart}
                                 onDragOver={handleDragOver}
                                 onDrop={handleDrop}
                                 onAddTask={handleAddTask}
-                                onUpdateTask={handleUpdateTask}
                                 onDeleteTask={handleDeleteTask}
-                                onToggleTaskLabel={handleToggleTaskLabel}
+                                onOpenDetail={(taskId) => { setDetailTaskId(taskId); setActivityOpen(false); setAnalyticsOpen(false); }}
+                                onToggleSelect={handleToggleSelect}
                                 onRenameColumn={handleRenameColumn}
                                 onDeleteColumn={handleDeleteColumn}
                             />
                         </motion.div>
                     ))}
 
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ duration: 0.4, delay: 0.1 * board.columns.length }}
-                    >
-                        <button
-                            onClick={handleAddColumn}
-                            className="flex h-full min-h-[500px] w-[300px] flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-white/10 text-velora-text-subtle transition-all hover:border-velora-cyan/30 hover:bg-white/5 hover:text-velora-cyan"
+                    {!bulkMode && (
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.4, delay: 0.1 * board.columns.length }}
                         >
-                            <Plus className="h-8 w-8" />
-                            <span className="text-sm font-medium">Add Column</span>
-                        </button>
-                    </motion.div>
+                            <button
+                                onClick={handleAddColumn}
+                                className="flex h-full min-h-[500px] w-[300px] flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-white/10 text-velora-text-subtle transition-all hover:border-velora-cyan/30 hover:bg-white/5 hover:text-velora-cyan"
+                            >
+                                <Plus className="h-8 w-8" />
+                                <span className="text-sm font-medium">Add Column</span>
+                            </button>
+                        </motion.div>
+                    )}
                 </motion.div>
             </div>
 
+            {/* Panels */}
             <ActivityPanel
                 boardId={board.id}
                 isOpen={activityOpen}
                 onClose={() => setActivityOpen(false)}
             />
+            <AnalyticsPanel
+                boardId={board.id}
+                isOpen={analyticsOpen}
+                onClose={() => setAnalyticsOpen(false)}
+            />
+
+            <AnimatePresence>
+                {detailTask && (
+                    <TaskDetailPanel
+                        key={detailTask.id}
+                        task={detailTask}
+                        boardLabels={board.labels}
+                        boardMembers={boardMembers}
+                        currentUserId={currentUserId}
+                        onClose={() => setDetailTaskId(null)}
+                        onUpdate={handleUpdateTask}
+                        onDelete={handleDeleteTask}
+                        onToggleLabel={handleToggleTaskLabel}
+                    />
+                )}
+            </AnimatePresence>
+
+            <AnimatePresence>
+                {bulkMode && selectedTaskIds.size > 0 && (
+                    <BulkActionsBar
+                        selectedCount={selectedTaskIds.size}
+                        columns={board.columns}
+                        boardId={board.id}
+                        onClear={() => setSelectedTaskIds(new Set())}
+                        onBulkDelete={handleBulkDelete}
+                        onBulkMove={handleBulkMove}
+                        onBulkReprioritize={handleBulkReprioritize}
+                    />
+                )}
+            </AnimatePresence>
 
             <KeyboardShortcuts
                 onNewTask={() => firstColumnAddFormRef.current?.open()}

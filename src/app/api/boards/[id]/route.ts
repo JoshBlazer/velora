@@ -32,10 +32,18 @@ export async function GET(
             where: { id },
             include: {
                 user: true,
+                labels: true,
                 columns: {
                     orderBy: { order: "asc" },
                     include: {
-                        tasks: { orderBy: { order: "asc" } },
+                        tasks: {
+                            orderBy: { order: "asc" },
+                            include: {
+                                labels: true,
+                                assignee: { select: { id: true, name: true, image: true } },
+                                _count: { select: { comments: true } },
+                            },
+                        },
                     },
                 },
                 members: {

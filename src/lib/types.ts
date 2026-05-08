@@ -46,11 +46,24 @@ export interface Task {
     priority: Priority;
     dueDate: Date | null;
     reminderSentAt?: Date | null;
+    assigneeId?: string | null;
+    assignee?: Pick<User, "id" | "name" | "image"> | null;
+    commentCount?: number;
     order: number;
     createdAt: Date;
     updatedAt: Date;
     columnId: string;
     labels: Label[];
+}
+
+export interface Comment {
+    id: string;
+    content: string;
+    taskId: string;
+    userId: string;
+    createdAt: Date;
+    updatedAt: Date;
+    user?: Pick<User, "id" | "name" | "image">;
 }
 
 export interface BoardMember {
@@ -75,6 +88,7 @@ export interface Activity {
 export interface BoardWithColumns extends Board {
     columns: ColumnWithTasks[];
     labels: Label[];
+    members?: BoardMember[];
 }
 
 export interface ColumnWithTasks extends Column {
@@ -86,6 +100,7 @@ export interface CreateTaskPayload {
     priority?: Priority;
     columnId: string;
     dueDate?: string | null;
+    assigneeId?: string | null;
 }
 
 export interface UpdateTaskPayload {
@@ -93,6 +108,7 @@ export interface UpdateTaskPayload {
     content?: string;
     priority?: Priority;
     dueDate?: string | null;
+    assigneeId?: string | null;
 }
 
 export interface MoveTaskPayload {

@@ -11,6 +11,7 @@ const createSchema = z.object({
     priority: z.enum(["LOW", "MEDIUM", "HIGH"]).default("MEDIUM"),
     columnId: z.string().min(1, "Column ID is required"),
     dueDate: z.string().datetime({ offset: true }).nullable().optional(),
+    assigneeId: z.string().uuid().nullable().optional(),
 });
 
 const updateSchema = z.object({
@@ -18,6 +19,7 @@ const updateSchema = z.object({
     content: z.string().min(1).optional(),
     priority: z.enum(["LOW", "MEDIUM", "HIGH"]).optional(),
     dueDate: z.string().datetime({ offset: true }).nullable().optional(),
+    assigneeId: z.string().uuid().nullable().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -32,7 +34,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
         }
 
-        const { content, priority, columnId, dueDate } = parsed.data;
+        const { content, priority, columnId, dueDate, assigneeId } = parsed.data;
 
         const column = await prisma.column.findUnique({
             where: { id: columnId },
@@ -58,8 +60,13 @@ export async function POST(request: NextRequest) {
                 order: maxOrderTask ? maxOrderTask.order + 1 : 0,
                 columnId,
                 dueDate: dueDate ? new Date(dueDate) : null,
+                assigneeId: assigneeId ?? null,
             },
-            include: { labels: true },
+            include: {
+                labels: true,
+                assignee: { select: { id: true, name: true, image: true } },
+                _count: { select: { comments: true } },
+            },
         });
 
         await logActivity(column.boardId, session.user.id, "TASK_CREATED", { content });
@@ -83,7 +90,7 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
         }
 
-        const { id, content, priority, dueDate } = parsed.data;
+        const { id, content, priority, dueDate, assigneeId } = parsed.data;
 
         const task = await prisma.task.findUnique({
             where: { id },
@@ -96,14 +103,31 @@ export async function PATCH(request: NextRequest) {
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
-        const updateData: { content?: string; priority?: Priority; dueDate?: Date | null } = {};
+        const updateData: Record<string, unknown> = {};
         if (content !== undefined) updateData.content = content;
         if (priority !== undefined) updateData.priority = priority as Priority;
         if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null;
+        if (assigneeId !== undefined) updateData.assigneeId = assigneeId ?? null;
 
-        const updated = await prisma.task.update({ where: { id }, data: updateData, include: { labels: true } });
+        const updated = await prisma.task.update({
+            where: { id },
+            data: updateData,
+            include: {
+                labels: true,
+                assignee: { select: { id: true, name: true, image: true } },
+                _count: { select: { comments: true } },
+            },
+        });
 
-        await logActivity(task.column.boardId, session.user.id, "TASK_UPDATED", { content: content ?? task.content });
+        if (assigneeId !== undefined && assigneeId !== task.assigneeId) {
+            await logActivity(task.column.boardId, session.user.id, "TASK_ASSIGNED", {
+                content: content ?? task.content,
+            });
+        } else {
+            await logActivity(task.column.boardId, session.user.id, "TASK_UPDATED", {
+                content: content ?? task.content,
+            });
+        }
 
         return NextResponse.json(updated);
     } catch (error) {

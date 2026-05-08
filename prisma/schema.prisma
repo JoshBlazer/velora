@@ -31,12 +31,14 @@ enum ActivityType {
   TASK_UPDATED
   TASK_DELETED
   TASK_MOVED
+  TASK_ASSIGNED
   COLUMN_CREATED
   COLUMN_DELETED
   COLUMN_RENAMED
   BOARD_RENAMED
   MEMBER_ADDED
   MEMBER_REMOVED
+  COMMENT_ADDED
 }
 
 // ============================================
@@ -54,11 +56,13 @@ model User {
   updatedAt     DateTime  @updatedAt
 
   // Relations
-  boards       Board[]
-  boardMembers BoardMember[]
-  activities   Activity[]
-  accounts     Account[]
-  sessions     Session[]
+  boards        Board[]
+  boardMembers  BoardMember[]
+  activities    Activity[]
+  comments      Comment[]
+  assignedTasks Task[]        @relation("TaskAssignee")
+  accounts      Account[]
+  sessions      Session[]
 
   @@map("users")
 }
@@ -164,12 +168,31 @@ model Task {
   updatedAt       DateTime  @updatedAt
 
   // Relations
-  columnId String  @db.Uuid
-  column   Column  @relation(fields: [columnId], references: [id], onDelete: Cascade)
-  labels   Label[] // Many-to-many with labels
+  columnId   String  @db.Uuid
+  column     Column  @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  labels     Label[] // Many-to-many with labels
+  comments   Comment[]
+  assigneeId String?  @db.Uuid
+  assignee   User?    @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
 
   @@index([columnId])
+  @@index([assigneeId])
   @@map("tasks")
+}
+
+model Comment {
+  id        String   @id @default(uuid()) @db.Uuid
+  content   String
+  taskId    String   @db.Uuid
+  userId    String   @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@map("comments")
 }
 
 model Label {

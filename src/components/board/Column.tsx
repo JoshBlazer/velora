@@ -15,13 +15,15 @@ interface ColumnProps {
     addFormRef?: React.RefObject<AddTaskFormHandle | null>;
     visibleTaskIds?: Set<string>;
     filterActive?: boolean;
+    selectedTaskIds: Set<string>;
+    bulkMode: boolean;
     onDragStart: (e: React.DragEvent, taskId: string) => void;
     onDragOver: (e: React.DragEvent) => void;
     onDrop: (e: React.DragEvent, columnId: string, insertIndex: number) => void;
     onAddTask: (columnId: string, content: string, priority: Priority) => void;
-    onUpdateTask: (taskId: string, content: string, priority: Priority, dueDate: Date | null) => void;
     onDeleteTask: (taskId: string) => void;
-    onToggleTaskLabel: (taskId: string, labelId: string, assigned: boolean) => void;
+    onOpenDetail: (taskId: string) => void;
+    onToggleSelect: (taskId: string) => void;
     onRenameColumn?: (columnId: string, title: string) => void;
     onDeleteColumn?: (columnId: string) => void;
 }
@@ -32,13 +34,15 @@ export function Column({
     addFormRef,
     visibleTaskIds,
     filterActive,
+    selectedTaskIds,
+    bulkMode,
     onDragStart,
     onDragOver,
     onDrop,
     onAddTask,
-    onUpdateTask,
     onDeleteTask,
-    onToggleTaskLabel,
+    onOpenDetail,
+    onToggleSelect,
     onRenameColumn,
     onDeleteColumn,
 }: ColumnProps) {
@@ -59,7 +63,6 @@ export function Column({
         e.preventDefault();
         setIsDragOver(true);
         onDragOver(e);
-        // Default insertion point: end of list (overridden by task-level handlers)
         if (dragOverIndex === null) setDragOverIndex(column.tasks.length);
     };
 
@@ -91,15 +94,17 @@ export function Column({
         setIsMenuOpen(false);
     };
 
+    const disableDnd = filterActive || bulkMode;
+
     return (
         <GlassPanel
             intensity="medium"
             role="region"
             aria-label={column.title}
-            className={`flex h-full min-h-[500px] flex-col p-4 transition-all ${isDragOver && !filterActive ? "ring-2 ring-velora-cyan/50" : ""}`}
-            onDragOver={filterActive ? undefined : handleDragOver}
-            onDragLeave={filterActive ? undefined : handleDragLeave}
-            onDrop={filterActive ? undefined : handleDrop}
+            className={`flex h-full min-h-[500px] flex-col p-4 transition-all ${isDragOver && !disableDnd ? "ring-2 ring-velora-cyan/50" : ""}`}
+            onDragOver={disableDnd ? undefined : handleDragOver}
+            onDragLeave={disableDnd ? undefined : handleDragLeave}
+            onDrop={disableDnd ? undefined : handleDrop}
         >
             {/* Column Header */}
             <div className="mb-4 flex items-center justify-between">
@@ -111,24 +116,15 @@ export function Column({
                             onChange={(e) => setEditTitle(e.target.value)}
                             onKeyDown={(e) => {
                                 if (e.key === "Enter") handleSaveTitle();
-                                if (e.key === "Escape") {
-                                    setEditTitle(column.title);
-                                    setIsEditing(false);
-                                }
+                                if (e.key === "Escape") { setEditTitle(column.title); setIsEditing(false); }
                             }}
                             autoFocus
                             className="flex-1 rounded bg-white/10 px-2 py-1 text-sm font-semibold uppercase tracking-wider text-white outline-none ring-1 ring-white/20 focus:ring-velora-cyan/50"
                         />
-                        <button
-                            onClick={() => { setEditTitle(column.title); setIsEditing(false); }}
-                            className="rounded p-1 text-velora-text-subtle hover:bg-white/10"
-                        >
+                        <button onClick={() => { setEditTitle(column.title); setIsEditing(false); }} className="rounded p-1 text-velora-text-subtle hover:bg-white/10">
                             <X className="h-4 w-4" />
                         </button>
-                        <button
-                            onClick={handleSaveTitle}
-                            className="rounded bg-velora-cyan/20 p-1 text-velora-cyan hover:bg-velora-cyan/30"
-                        >
+                        <button onClick={handleSaveTitle} className="rounded bg-velora-cyan/20 p-1 text-velora-cyan hover:bg-velora-cyan/30">
                             <Check className="h-4 w-4" />
                         </button>
                     </div>
@@ -158,47 +154,26 @@ export function Column({
 
                                 {isMenuOpen && (
                                     <>
-                                        <div
-                                            className="fixed inset-0 z-40"
-                                            onClick={() => { setIsMenuOpen(false); setIsDeleting(false); }}
-                                        />
+                                        <div className="fixed inset-0 z-40" onClick={() => { setIsMenuOpen(false); setIsDeleting(false); }} />
                                         <div className="absolute right-0 top-8 z-50 w-40">
                                             <GlassPanel intensity="heavy" className="p-1">
                                                 {isDeleting ? (
                                                     <div className="p-2">
                                                         <p className="mb-2 text-xs text-velora-text-muted">
-                                                            Delete column{column.tasks.length > 0
-                                                                ? ` and ${column.tasks.length} task${column.tasks.length > 1 ? "s" : ""}`
-                                                                : ""}?
+                                                            Delete column{column.tasks.length > 0 ? ` and ${column.tasks.length} task${column.tasks.length > 1 ? "s" : ""}` : ""}?
                                                         </p>
                                                         <div className="flex gap-2">
-                                                            <button
-                                                                onClick={() => setIsDeleting(false)}
-                                                                className="flex-1 rounded bg-white/10 px-2 py-1 text-xs text-velora-text-muted hover:bg-white/20"
-                                                            >
-                                                                Cancel
-                                                            </button>
-                                                            <button
-                                                                onClick={handleDeleteColumn}
-                                                                className="flex-1 rounded bg-red-500/20 px-2 py-1 text-xs text-red-400 hover:bg-red-500/30"
-                                                            >
-                                                                Delete
-                                                            </button>
+                                                            <button onClick={() => setIsDeleting(false)} className="flex-1 rounded bg-white/10 px-2 py-1 text-xs text-velora-text-muted hover:bg-white/20">Cancel</button>
+                                                            <button onClick={handleDeleteColumn} className="flex-1 rounded bg-red-500/20 px-2 py-1 text-xs text-red-400 hover:bg-red-500/30">Delete</button>
                                                         </div>
                                                     </div>
                                                 ) : (
                                                     <>
-                                                        <button
-                                                            onClick={() => { setIsEditing(true); setIsMenuOpen(false); }}
-                                                            className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-velora-text-muted hover:bg-white/10 hover:text-white"
-                                                        >
+                                                        <button onClick={() => { setIsEditing(true); setIsMenuOpen(false); }} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-velora-text-muted hover:bg-white/10 hover:text-white">
                                                             <Pencil className="h-3.5 w-3.5" />
                                                             Rename
                                                         </button>
-                                                        <button
-                                                            onClick={() => setIsDeleting(true)}
-                                                            className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-red-400 hover:bg-red-500/10"
-                                                        >
+                                                        <button onClick={() => setIsDeleting(true)} className="flex w-full items-center gap-2 rounded px-3 py-2 text-sm text-red-400 hover:bg-red-500/10">
                                                             <Trash2 className="h-3.5 w-3.5" />
                                                             Delete
                                                         </button>
@@ -221,7 +196,7 @@ export function Column({
                         <div
                             key={task.id}
                             role="listitem"
-                            onDragOver={filterActive ? undefined : (e) => {
+                            onDragOver={disableDnd ? undefined : (e) => {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 setIsDragOver(true);
@@ -229,40 +204,42 @@ export function Column({
                                 setDragOverIndex(e.clientY < rect.top + rect.height / 2 ? index : index + 1);
                             }}
                         >
-                            {!filterActive && isDragOver && dragOverIndex === index && (
+                            {!disableDnd && isDragOver && dragOverIndex === index && (
                                 <div className="mb-2 h-0.5 w-full rounded-full bg-velora-cyan" aria-hidden="true" />
                             )}
                             <TaskCard
                                 task={task}
                                 boardLabels={boardLabels}
-                                onDragStart={filterActive ? () => {} : onDragStart}
-                                onUpdate={onUpdateTask}
+                                isSelected={selectedTaskIds.has(task.id)}
+                                bulkMode={bulkMode}
+                                onDragStart={disableDnd ? () => {} : onDragStart}
                                 onDelete={onDeleteTask}
-                                onToggleLabel={onToggleTaskLabel}
+                                onOpenDetail={onOpenDetail}
+                                onToggleSelect={onToggleSelect}
                             />
                         </div>
                     ))}
                 </AnimatePresence>
 
-                {!filterActive && isDragOver && dragOverIndex === column.tasks.length && (
+                {!disableDnd && isDragOver && dragOverIndex === column.tasks.length && (
                     <div className="h-0.5 w-full rounded-full bg-velora-cyan" aria-hidden="true" />
                 )}
 
                 {filterActive && displayTasks.length === 0 && (
-                    <p className="py-4 text-center text-sm text-velora-text-subtle" role="status">
-                        No matching tasks
-                    </p>
+                    <p className="py-4 text-center text-sm text-velora-text-subtle" role="status">No matching tasks</p>
                 )}
             </div>
 
             {/* Add Task */}
-            <div className="mt-4 border-t border-white/10 pt-4">
-                <AddTaskForm
-                    ref={effectiveRef}
-                    columnId={column.id}
-                    onAdd={(content, priority) => onAddTask(column.id, content, priority)}
-                />
-            </div>
+            {!bulkMode && (
+                <div className="mt-4 border-t border-white/10 pt-4">
+                    <AddTaskForm
+                        ref={effectiveRef}
+                        columnId={column.id}
+                        onAdd={(content, priority) => onAddTask(column.id, content, priority)}
+                    />
+                </div>
+            )}
         </GlassPanel>
     );
 }
