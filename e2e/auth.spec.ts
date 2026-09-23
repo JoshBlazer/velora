@@ -1,4 +1,10 @@
 import { test, expect } from "@playwright/test";
+import {
+    BOARDS_EMAIL,
+    BOARDS_PASSWORD,
+    UNVERIFIED_EMAIL,
+    UNVERIFIED_PASSWORD,
+} from "./global-setup";
 
 const TEST_EMAIL = `test-${Date.now()}@velora-e2e.test`;
 const TEST_PASSWORD = "e2epassword123";
@@ -10,7 +16,7 @@ test.describe("Auth flow", () => {
         await expect(page).toHaveURL(/\/login/);
     });
 
-    test("signup creates account and redirects to /boards", async ({ page }) => {
+    test("signup creates an account and asks the user to verify their email", async ({ page }) => {
         await page.goto("/signup");
 
         await page.getByLabel("Full Name").fill(TEST_NAME);
@@ -18,14 +24,28 @@ test.describe("Auth flow", () => {
         await page.getByLabel("Password").fill(TEST_PASSWORD);
         await page.getByRole("button", { name: "Create Account" }).click();
 
-        await expect(page).toHaveURL(/\/boards/, { timeout: 15_000 });
+        // Signup no longer signs the user straight in: the address has to be
+        // proven first, so the account waits on the emailed link.
+        await expect(page.getByText("Check your email")).toBeVisible({ timeout: 15_000 });
+        await expect(page).not.toHaveURL(/\/boards/);
+    });
+
+    test("login is refused while the email is unverified", async ({ page }) => {
+        await page.goto("/login");
+
+        await page.getByLabel("Email").fill(UNVERIFIED_EMAIL);
+        await page.getByLabel("Password").fill(UNVERIFIED_PASSWORD);
+        await page.getByRole("button", { name: "Sign In" }).click();
+
+        await expect(page.getByText("Invalid email or password")).toBeVisible({ timeout: 5_000 });
+        await expect(page).not.toHaveURL(/\/boards/);
     });
 
     test("login with valid credentials redirects to /boards", async ({ page }) => {
         await page.goto("/login");
 
-        await page.getByLabel("Email").fill(TEST_EMAIL);
-        await page.getByLabel("Password").fill(TEST_PASSWORD);
+        await page.getByLabel("Email").fill(BOARDS_EMAIL);
+        await page.getByLabel("Password").fill(BOARDS_PASSWORD);
         await page.getByRole("button", { name: "Sign In" }).click();
 
         await expect(page).toHaveURL(/\/boards/, { timeout: 15_000 });
@@ -34,7 +54,7 @@ test.describe("Auth flow", () => {
     test("login with wrong password shows error", async ({ page }) => {
         await page.goto("/login");
 
-        await page.getByLabel("Email").fill(TEST_EMAIL);
+        await page.getByLabel("Email").fill(BOARDS_EMAIL);
         await page.getByLabel("Password").fill("wrongpassword");
         await page.getByRole("button", { name: "Sign In" }).click();
 
@@ -59,8 +79,8 @@ test.describe("Auth flow", () => {
     test("logged-in user is redirected away from /login", async ({ page }) => {
         // Log in first
         await page.goto("/login");
-        await page.getByLabel("Email").fill(TEST_EMAIL);
-        await page.getByLabel("Password").fill(TEST_PASSWORD);
+        await page.getByLabel("Email").fill(BOARDS_EMAIL);
+        await page.getByLabel("Password").fill(BOARDS_PASSWORD);
         await page.getByRole("button", { name: "Sign In" }).click();
         await expect(page).toHaveURL(/\/boards/, { timeout: 15_000 });
 

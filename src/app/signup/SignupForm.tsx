@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Sparkles, Mail, Lock, User, AlertCircle } from "lucide-react";
@@ -10,13 +8,13 @@ import { GlassLayout } from "@/components/layout/GlassLayout";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 
 export function SignupForm() {
-    const router = useRouter();
 
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [isLoading, setIsLoading] = useState(false);
+    const [awaitingVerification, setAwaitingVerification] = useState(false);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -35,18 +33,11 @@ export function SignupForm() {
                 throw new Error(data.error || "Failed to create account");
             }
 
-            const result = await signIn("credentials", {
-                email,
-                password,
-                redirect: false,
-            });
-
-            if (result?.error) {
-                throw new Error("Account created but failed to sign in");
-            }
-
-            router.push("/boards");
-            router.refresh();
+            // Signing in here used to be automatic, which meant an address was
+            // never actually proven to belong to whoever typed it. Login now
+            // requires a verified address, so the account waits on the emailed
+            // link instead.
+            setAwaitingVerification(true);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Something went wrong");
         } finally {
@@ -71,6 +62,28 @@ export function SignupForm() {
                     </div>
 
                     <GlassPanel intensity="medium" className="p-8">
+                        {awaitingVerification ? (
+                            <div className="text-center">
+                                <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-velora-cyan/15">
+                                    <Mail className="h-6 w-6 text-velora-cyan" />
+                                </div>
+                                <h1 className="mb-2 text-2xl font-bold text-white">
+                                    Check your email
+                                </h1>
+                                <p className="mb-6 text-sm text-velora-text-muted">
+                                    We sent a verification link to{" "}
+                                    <span className="text-white">{email}</span>. Open it to
+                                    activate your account, then sign in.
+                                </p>
+                                <Link
+                                    href="/login"
+                                    className="inline-block rounded-lg bg-gradient-to-r from-velora-cyan to-velora-pink px-5 py-2.5 text-sm font-medium text-white transition-all hover:scale-105"
+                                >
+                                    Go to sign in
+                                </Link>
+                            </div>
+                        ) : (
+                        <>
                         <h1 className="mb-2 text-center text-2xl font-bold text-white">
                             Create Account
                         </h1>
@@ -166,6 +179,8 @@ export function SignupForm() {
                                 Sign in
                             </Link>
                         </p>
+                        </>
+                        )}
                     </GlassPanel>
                 </motion.div>
             </div>
