@@ -39,17 +39,19 @@ test.describe("Boards", () => {
     test("board page shows columns", async ({ page }) => {
         await loginAs(page, TEST_EMAIL, TEST_PASSWORD);
 
-        // Navigate to the first board
-        await page.getByText("My E2E Board").click();
+        // Navigate to the first board. The board name also appears in the
+        // activity feed, and a retry runs against data the first attempt
+        // left behind, so scope to the first match.
+        await page.getByText("My E2E Board").first().click();
         await page.waitForURL(/\/board\//);
 
         // Default columns should exist
-        await expect(page.getByText("To Do")).toBeVisible();
+        await expect(page.getByText("To Do").first()).toBeVisible();
     });
 
     test("can add a task", async ({ page }) => {
         await loginAs(page, TEST_EMAIL, TEST_PASSWORD);
-        await page.getByText("My E2E Board").click();
+        await page.getByText("My E2E Board").first().click();
         await page.waitForURL(/\/board\//);
 
         // /task/i also matches the "Search tasks..." filter box, and /add/i
@@ -59,6 +61,8 @@ test.describe("Boards", () => {
         await page.getByPlaceholder(/enter task description/i).fill("My test task");
         await page.getByRole("button", { name: "Add", exact: true }).click();
 
-        await expect(page.getByText("My test task")).toBeVisible({ timeout: 5_000 });
+        // The task renders on its card and again in the board activity feed,
+        // so this text is legitimately present more than once.
+        await expect(page.getByText("My test task").first()).toBeVisible({ timeout: 5_000 });
     });
 });
