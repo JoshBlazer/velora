@@ -31,6 +31,11 @@ jobs:
       AUTH_SECRET: ci-e2e-secret-do-not-use-in-prod
       APP_URL: http://localhost:3001
       PLAYWRIGHT_BASE_URL: http://localhost:3001
+      # The suite serves a production build, and Auth.js only trusts the
+      # request host automatically in development. Without this, every
+      # authenticated route fails with UntrustedHost over http://localhost.
+      AUTH_TRUST_HOST: "true"
+      AUTH_URL: http://localhost:3001
 
     steps:
       - uses: actions/checkout@v4

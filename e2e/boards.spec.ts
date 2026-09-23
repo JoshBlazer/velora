@@ -1,7 +1,8 @@
 import { test, expect } from "@playwright/test";
+import { BOARDS_EMAIL, BOARDS_PASSWORD } from "./global-setup";
 
-const TEST_EMAIL = "boards-e2e@velora-e2e.test";
-const TEST_PASSWORD = "e2epassword123";
+const TEST_EMAIL = BOARDS_EMAIL;
+const TEST_PASSWORD = BOARDS_PASSWORD;
 
 async function loginAs(page: import("@playwright/test").Page, email: string, password: string) {
     await page.goto("/login");
@@ -12,17 +13,10 @@ async function loginAs(page: import("@playwright/test").Page, email: string, pas
 }
 
 test.describe("Boards", () => {
-    test.beforeAll(async ({ browser }) => {
-        // Create the test account once
-        const page = await browser.newPage();
-        await page.goto("/signup");
-        await page.getByLabel("Full Name").fill("Boards E2E");
-        await page.getByLabel("Email").fill(TEST_EMAIL);
-        await page.getByLabel("Password").fill(TEST_PASSWORD);
-        await page.getByRole("button", { name: "Create Account" }).click();
-        await page.waitForURL(/\/boards/, { timeout: 15_000 });
-        await page.close();
-    });
+    // The account is seeded in global-setup, not created through the signup
+    // UI: a beforeAll signup re-runs on every retry and exhausts the signup
+    // rate limit, after which the account never exists and each login hangs
+    // on /login.
 
     test("boards page shows create board card", async ({ page }) => {
         await loginAs(page, TEST_EMAIL, TEST_PASSWORD);
@@ -45,23 +39,30 @@ test.describe("Boards", () => {
     test("board page shows columns", async ({ page }) => {
         await loginAs(page, TEST_EMAIL, TEST_PASSWORD);
 
-        // Navigate to the first board
-        await page.getByText("My E2E Board").click();
+        // Navigate to the first board. The board name also appears in the
+        // activity feed, and a retry runs against data the first attempt
+        // left behind, so scope to the first match.
+        await page.getByText("My E2E Board").first().click();
         await page.waitForURL(/\/board\//);
 
         // Default columns should exist
-        await expect(page.getByText("To Do")).toBeVisible();
+        await expect(page.getByText("To Do").first()).toBeVisible();
     });
 
     test("can add a task", async ({ page }) => {
         await loginAs(page, TEST_EMAIL, TEST_PASSWORD);
-        await page.getByText("My E2E Board").click();
+        await page.getByText("My E2E Board").first().click();
         await page.waitForURL(/\/board\//);
 
+        // /task/i also matches the "Search tasks..." filter box, and /add/i
+        // also matches every column's "Add Task" button, so both locators
+        // have to be specific enough to resolve to one element.
         await page.getByRole("button", { name: /add task/i }).first().click();
-        await page.getByPlaceholder(/task/i).fill("My test task");
-        await page.getByRole("button", { name: /add/i }).click();
+        await page.getByPlaceholder(/enter task description/i).fill("My test task");
+        await page.getByRole("button", { name: "Add", exact: true }).click();
 
-        await expect(page.getByText("My test task")).toBeVisible({ timeout: 5_000 });
+        // The task renders on its card and again in the board activity feed,
+        // so this text is legitimately present more than once.
+        await expect(page.getByText("My test task").first()).toBeVisible({ timeout: 5_000 });
     });
 });
