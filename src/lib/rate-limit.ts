@@ -60,6 +60,12 @@ function memoryRateLimit(key: string, limit: number, windowMs: number): boolean 
     return true;
 }
 
+function memoryPeek(key: string, limit: number): boolean {
+    const entry = store.get(key);
+    if (!entry || entry.resetAt < Date.now()) return true;
+    return entry.count < limit;
+}
+
 async function redisCommand(command: (string | number)[]): Promise<unknown> {
     const res = await fetch(REDIS_URL!, {
         method: "POST",
@@ -104,6 +110,46 @@ export async function rateLimit(key: string, limit: number, windowMs: number): P
     } catch (error) {
         console.error("[rate-limit] Redis unavailable, allowing request:", error);
         return true;
+    }
+}
+
+/**
+ * Reports whether `key` still has allowance left, without consuming any.
+ *
+ * Pair with recordAttempt/clearAttempts when only failures should count --
+ * for login, a legitimate user signing in repeatedly should never exhaust the
+ * budget that exists to slow password guessing.
+ */
+export async function hasAllowance(key: string, limit: number): Promise<boolean> {
+    warnIfUnsharedInProduction();
+
+    if (!useRedis) return memoryPeek(key, limit);
+
+    try {
+        const raw = await redisCommand(["GET", key]);
+        return raw === null || Number(raw) < limit;
+    } catch (error) {
+        console.error("[rate-limit] Redis unavailable, allowing request:", error);
+        return true;
+    }
+}
+
+/** Consumes one unit of allowance for `key`. */
+export async function recordAttempt(key: string, limit: number, windowMs: number): Promise<void> {
+    await rateLimit(key, limit, windowMs);
+}
+
+/** Drops the counter for `key`, e.g. after a successful login. */
+export async function clearAttempts(key: string): Promise<void> {
+    if (!useRedis) {
+        store.delete(key);
+        return;
+    }
+
+    try {
+        await redisCommand(["DEL", key]);
+    } catch (error) {
+        console.error("[rate-limit] Redis unavailable, could not clear counter:", error);
     }
 }
 

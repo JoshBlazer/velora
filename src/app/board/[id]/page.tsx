@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
+import { getBoardAccess, canRead } from "@/lib/board-access";
 import { BoardClient } from "./BoardClient";
 import { BoardWithColumns } from "@/lib/types";
 
@@ -11,6 +12,17 @@ interface BoardPageProps {
 
 export async function generateMetadata({ params }: BoardPageProps): Promise<Metadata> {
     const { id } = await params;
+
+    // The page body calls notFound() for anyone without access, but metadata
+    // is resolved separately: looking the board up here unconditionally put
+    // its title into the <title> and description of the 404 page, handing a
+    // stranger the name of a private board just for guessing its URL.
+    const session = await auth();
+    if (!session?.user?.id) return { title: "Board" };
+
+    const access = await getBoardAccess(id, session.user.id);
+    if (!canRead(access)) return { title: "Board" };
+
     const board = await prisma.board.findUnique({ where: { id }, select: { title: true } });
     return board
         ? { title: board.title, description: `Kanban board: ${board.title}` }

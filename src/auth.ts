@@ -3,13 +3,16 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
-import { rateLimit, getClientIp } from "@/lib/rate-limit";
+import { hasAllowance, recordAttempt, clearAttempts, getClientIp } from "@/lib/rate-limit";
 
 // Signup, forgot-password and reset-password were already rate limited. Login
 // was not, which left unlimited password guessing against every account.
+//
+// Only failures count, and a success clears the counter: the budget exists to
+// slow guessing, so signing in correctly should never consume it.
 const LOGIN_WINDOW_MS = 15 * 60 * 1000;
-const LOGIN_MAX_PER_IP = 20;
-const LOGIN_MAX_PER_EMAIL = 10;
+const LOGIN_MAX_FAILURES_PER_IP = 20;
+const LOGIN_MAX_FAILURES_PER_EMAIL = 10;
 
 // Enforced unless explicitly disabled. Accounts created before this have
 // emailVerified = null and would be locked out, so backfill them first with
@@ -48,27 +51,39 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 // source working through many accounts; the per-email limit
                 // slows a distributed attack concentrated on one account.
                 const ip = getClientIp(request as unknown as Request);
+                const ipKey = `login-fail-ip:${ip}`;
+                const accountKey = `login-fail-email:${emailKey}`;
+
                 const [ipAllowed, emailAllowed] = await Promise.all([
-                    rateLimit(`login-ip:${ip}`, LOGIN_MAX_PER_IP, LOGIN_WINDOW_MS),
-                    rateLimit(`login-email:${emailKey}`, LOGIN_MAX_PER_EMAIL, LOGIN_WINDOW_MS),
+                    hasAllowance(ipKey, LOGIN_MAX_FAILURES_PER_IP),
+                    hasAllowance(accountKey, LOGIN_MAX_FAILURES_PER_EMAIL),
                 ]);
 
                 if (!ipAllowed || !emailAllowed) {
-                    console.warn(`[auth] Login rate limit hit (ip=${ip})`);
+                    console.warn(`[auth] Login blocked by rate limit (ip=${ip})`);
                     return null;
                 }
+
+                const recordFailure = async () => {
+                    await Promise.all([
+                        recordAttempt(ipKey, LOGIN_MAX_FAILURES_PER_IP, LOGIN_WINDOW_MS),
+                        recordAttempt(accountKey, LOGIN_MAX_FAILURES_PER_EMAIL, LOGIN_WINDOW_MS),
+                    ]);
+                };
 
                 const user = await prisma.user.findUnique({
                     where: { email },
                 });
 
                 if (!user || !user.password) {
+                    await recordFailure();
                     return null;
                 }
 
                 const isPasswordValid = await bcrypt.compare(password, user.password);
 
                 if (!isPasswordValid) {
+                    await recordFailure();
                     return null;
                 }
 
@@ -77,8 +92,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 // address they did not control and use it immediately.
                 if (requireVerifiedEmail && !user.emailVerified) {
                     console.warn(`[auth] Login blocked for unverified address`);
+                    // Not a guess at the password, so it does not count
+                    // against the brute-force budget.
                     return null;
                 }
+
+                // Correct credentials: give the budget back, so someone who
+                // fumbles a password a few times then succeeds is not left
+                // one attempt away from being locked out.
+                await Promise.all([clearAttempts(ipKey), clearAttempts(accountKey)]);
 
                 return {
                     id: user.id,
