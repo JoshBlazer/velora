@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { signOut } from "next-auth/react";
 import Link from "next/link";
@@ -52,7 +51,6 @@ function Avatar({ name, image, size = 48 }: { name: string; image: string; size?
 }
 
 export function SettingsClient({ initialName, initialImage, email, hasPassword }: SettingsClientProps) {
-    const router = useRouter();
     const { update } = useSession();
 
     const [name, setName] = useState(initialName);

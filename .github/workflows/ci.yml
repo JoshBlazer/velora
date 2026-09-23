@@ -28,5 +28,12 @@ jobs:
       - name: Type check
         run: node --max-old-space-size=2048 node_modules/typescript/bin/tsc --noEmit
 
+      # Fails the build on lint errors. Warnings stay visible in the log
+      # without gating -- the remaining ones are next/image suggestions for
+      # user avatars loaded from arbitrary remote hosts, which is a
+      # configuration and cost decision rather than a lint fix.
+      - name: Lint
+        run: npm run lint
+
       - name: Unit tests
         run: npm test

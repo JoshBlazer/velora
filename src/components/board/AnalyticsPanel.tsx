@@ -63,12 +63,26 @@ export function AnalyticsPanel({ boardId, isOpen, onClose }: AnalyticsPanelProps
 
     useEffect(() => {
         if (!isOpen) return;
-        setIsLoading(true);
-        fetch(`/api/boards/${boardId}/analytics`)
-            .then((r) => r.json())
-            .then(setData)
-            .catch(() => setData(null))
-            .finally(() => setIsLoading(false));
+
+        const controller = new AbortController();
+
+        const load = async () => {
+            setIsLoading(true);
+            try {
+                const res = await fetch(`/api/boards/${boardId}/analytics`, {
+                    signal: controller.signal,
+                });
+                setData(await res.json());
+            } catch (err) {
+                if ((err as Error)?.name === "AbortError") return;
+                setData(null);
+            } finally {
+                if (!controller.signal.aborted) setIsLoading(false);
+            }
+        };
+
+        load();
+        return () => controller.abort();
     }, [isOpen, boardId]);
 
     const maxColCount = data ? Math.max(...data.byColumn.map((c) => c.count), 1) : 1;

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { X, Trash2, Calendar, MessageSquare, Send, User } from "lucide-react";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Task, Label, Comment, BoardMember } from "@/lib/types";

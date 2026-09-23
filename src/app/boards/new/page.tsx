@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Sparkles, ArrowLeft, Layers } from "lucide-react";
+import { ArrowLeft, Layers } from "lucide-react";
 import { GlassLayout } from "@/components/layout/GlassLayout";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 

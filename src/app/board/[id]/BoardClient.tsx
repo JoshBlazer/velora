@@ -30,7 +30,7 @@ interface BoardClientProps {
 
 export function BoardClient({ initialBoard, isOwner, currentUserId }: BoardClientProps) {
     const [board, setBoard] = useState<BoardWithColumns>(initialBoard);
-    const [draggedTaskId, setDraggedTaskId] = useState<string | null>(null);
+    const [, setDraggedTaskId] = useState<string | null>(null);
     const [activityOpen, setActivityOpen] = useState(false);
     const [analyticsOpen, setAnalyticsOpen] = useState(false);
     const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
@@ -740,7 +740,6 @@ export function BoardClient({ initialBoard, isOwner, currentUserId }: BoardClien
                     <BulkActionsBar
                         selectedCount={selectedTaskIds.size}
                         columns={board.columns}
-                        boardId={board.id}
                         onClear={() => setSelectedTaskIds(new Set())}
                         onBulkDelete={handleBulkDelete}
                         onBulkMove={handleBulkMove}

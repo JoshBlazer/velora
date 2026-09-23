@@ -4,7 +4,13 @@ import { useEffect, useRef } from "react";
 
 export function useBoardSync(boardId: string, onRefresh: () => void) {
     const onRefreshRef = useRef(onRefresh);
-    onRefreshRef.current = onRefresh;
+
+    // Keep the ref current without writing to it during render, so the
+    // connection effect below can stay keyed on boardId alone and not tear
+    // down the EventSource every time the callback identity changes.
+    useEffect(() => {
+        onRefreshRef.current = onRefresh;
+    }, [onRefresh]);
 
     useEffect(() => {
         let es: EventSource | null = null;
