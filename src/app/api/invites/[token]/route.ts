@@ -63,11 +63,24 @@ export async function POST(
 
         const [, boardId, invitedEmail, role] = record.identifier.split(":");
 
-        if (session.user.email !== invitedEmail) {
+        // Addresses are stored as typed, so "Sam@Example.com" and
+        // "sam@example.com" are the same mailbox and either spelling should
+        // be able to accept the invite.
+        if (session.user.email?.toLowerCase() !== invitedEmail?.toLowerCase()) {
             return NextResponse.json(
                 { error: `This invite was sent to ${invitedEmail}. Please sign in with that email.` },
                 { status: 403 }
             );
+        }
+
+        // The role is read back out of the token. Only the invite endpoint
+        // writes these and it restricts the role to EDITOR or VIEWER, but
+        // nothing re-checked that here, so any future path able to shape an
+        // identifier would have handed out whatever role it named -- OWNER
+        // included. Verify rather than trust.
+        if (role !== "EDITOR" && role !== "VIEWER") {
+            console.error(`[invite] Refusing unexpected role in token: ${role}`);
+            return NextResponse.json({ error: "Invalid invite link" }, { status: 400 });
         }
 
         const existing = await prisma.boardMember.findUnique({

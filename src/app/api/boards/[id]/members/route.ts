@@ -6,6 +6,13 @@ import { randomBytes } from "crypto";
 import { getBoardAccess } from "@/lib/board-access";
 import { logActivity } from "@/lib/activity";
 import { sendBoardInviteEmail } from "@/lib/email";
+import { rateLimit } from "@/lib/rate-limit";
+
+// Inviting sends mail from our domain to an address the sender chooses, so an
+// uncapped invite endpoint is a spam relay wearing our sending reputation.
+// Keyed by account rather than IP, since the sender is always authenticated.
+const INVITE_MAX_PER_USER = 30;
+const INVITE_WINDOW_MS = 60 * 60 * 1000;
 
 const inviteSchema = z.object({
     email: z.string().email("Invalid email"),
@@ -62,8 +69,15 @@ export async function POST(
 
         const { email, role } = parsed.data;
 
-        if (email === session.user.email) {
+        if (email.toLowerCase() === session.user.email?.toLowerCase()) {
             return NextResponse.json({ error: "You're already the board owner" }, { status: 400 });
+        }
+
+        if (!await rateLimit(`invite:${session.user.id}`, INVITE_MAX_PER_USER, INVITE_WINDOW_MS)) {
+            return NextResponse.json(
+                { error: "Too many invites sent. Try again later." },
+                { status: 429 }
+            );
         }
 
         const board = await prisma.board.findUnique({

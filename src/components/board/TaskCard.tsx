@@ -7,6 +7,7 @@ import { Task, Label, priorityColors } from "@/lib/types";
 import { GripVertical, Trash2, MessageSquare } from "lucide-react";
 import { formatDueDate, isOverdue } from "@/lib/date-utils";
 import { Calendar } from "lucide-react";
+import { RemoteAvatar } from "@/components/ui/RemoteAvatar";
 
 interface TaskCardProps {
     task: Task;
@@ -22,7 +23,7 @@ interface TaskCardProps {
 function Avatar({ user }: { user: { name: string | null; image: string | null } | null | undefined }) {
     if (!user) return null;
     return user.image ? (
-        <img src={user.image} alt={user.name ?? ""} className="h-5 w-5 rounded-full object-cover" />
+        <RemoteAvatar src={user.image} alt={user.name ?? ""} className="h-5 w-5 rounded-full object-cover" />
     ) : (
         <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-velora-cyan/40 to-velora-pink/40 text-[10px] font-semibold text-white">
             {(user.name ?? "?")[0].toUpperCase()}

@@ -36,6 +36,10 @@ jobs:
       # authenticated route fails with UntrustedHost over http://localhost.
       AUTH_TRUST_HOST: "true"
       AUTH_URL: http://localhost:3001
+      # This job serves a production build to test against, with no mail
+      # provider and no Redis, so the startup configuration check would
+      # correctly refuse to boot. It is bypassed here and nowhere else.
+      SKIP_ENV_VALIDATION: "true"
 
     steps:
       - uses: actions/checkout@v4

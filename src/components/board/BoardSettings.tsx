@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { Settings, Pencil, Trash2, X, Check, Palette, Tag, Plus, Users, UserMinus } from "lucide-react";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Label, BOARD_BACKGROUNDS, LABEL_COLORS } from "@/lib/types";
+import { RemoteAvatar } from "@/components/ui/RemoteAvatar";
 
 interface BoardMemberEntry {
     id: string;
@@ -410,7 +411,7 @@ export function BoardSettings({
                                                 <div key={m.id} className="flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-white/5">
                                                     <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-velora-cyan/40 to-velora-pink/40 text-xs font-semibold text-white">
                                                         {m.user.image ? (
-                                                            <img src={m.user.image} alt={m.user.name ?? ""} className="h-7 w-7 rounded-full object-cover" />
+                                                            <RemoteAvatar src={m.user.image} alt={m.user.name ?? ""} className="h-7 w-7 rounded-full object-cover" />
                                                         ) : (
                                                             (m.user.name ?? m.user.email)[0].toUpperCase()
                                                         )}

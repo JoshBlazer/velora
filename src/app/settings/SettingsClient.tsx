@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Sparkles, ArrowLeft, User, Lock, Trash2, Check } from "lucide-react";
 import { GlassLayout } from "@/components/layout/GlassLayout";
 import { GlassPanel } from "@/components/ui/GlassPanel";
+import { RemoteAvatar } from "@/components/ui/RemoteAvatar";
 
 interface SettingsClientProps {
     initialName: string;
@@ -28,7 +29,7 @@ function Avatar({ name, image, size = 48 }: { name: string; image: string; size?
 
     if (image && !imgError) {
         return (
-            <img
+            <RemoteAvatar
                 src={image}
                 alt={name}
                 width={size}

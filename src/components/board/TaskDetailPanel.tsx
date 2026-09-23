@@ -8,6 +8,7 @@ import { Task, Label, Comment, BoardMember } from "@/lib/types";
 import { Priority } from "@prisma/client";
 import { formatDueDate, isOverdue, toDateInputValue } from "@/lib/date-utils";
 import { toast } from "sonner";
+import { RemoteAvatar } from "@/components/ui/RemoteAvatar";
 
 interface TaskDetailPanelProps {
     task: Task;
@@ -24,7 +25,7 @@ function Avatar({ user, size = "sm" }: { user: { name: string | null; image: str
     const sz = size === "sm" ? "h-6 w-6 text-xs" : "h-8 w-8 text-sm";
     if (!user) return null;
     return user.image ? (
-        <img src={user.image} alt={user.name ?? ""} className={`${sz} rounded-full object-cover`} />
+        <RemoteAvatar src={user.image} alt={user.name ?? ""} className={`${sz} rounded-full object-cover`} />
     ) : (
         <div className={`${sz} flex items-center justify-center rounded-full bg-gradient-to-br from-velora-cyan/40 to-velora-pink/40 font-semibold text-white`}>
             {(user.name ?? "?")[0].toUpperCase()}
