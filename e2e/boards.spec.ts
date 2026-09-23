@@ -52,9 +52,12 @@ test.describe("Boards", () => {
         await page.getByText("My E2E Board").click();
         await page.waitForURL(/\/board\//);
 
+        // /task/i also matches the "Search tasks..." filter box, and /add/i
+        // also matches every column's "Add Task" button, so both locators
+        // have to be specific enough to resolve to one element.
         await page.getByRole("button", { name: /add task/i }).first().click();
-        await page.getByPlaceholder(/task/i).fill("My test task");
-        await page.getByRole("button", { name: /add/i }).click();
+        await page.getByPlaceholder(/enter task description/i).fill("My test task");
+        await page.getByRole("button", { name: "Add", exact: true }).click();
 
         await expect(page.getByText("My test task")).toBeVisible({ timeout: 5_000 });
     });
