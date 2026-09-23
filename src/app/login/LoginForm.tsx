@@ -81,12 +81,13 @@ export function LoginForm() {
 
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div>
-                                <label className="mb-2 block text-sm font-medium text-velora-text-muted">
+                                <label htmlFor="email" className="mb-2 block text-sm font-medium text-velora-text-muted">
                                     Email
                                 </label>
                                 <div className="relative">
                                     <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-velora-text-subtle" />
                                     <input
+                                        id="email"
                                         type="email"
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
@@ -99,7 +100,7 @@ export function LoginForm() {
 
                             <div>
                                 <div className="mb-2 flex items-center justify-between">
-                                    <label className="text-sm font-medium text-velora-text-muted">
+                                    <label htmlFor="password" className="text-sm font-medium text-velora-text-muted">
                                         Password
                                     </label>
                                     <Link
@@ -112,6 +113,7 @@ export function LoginForm() {
                                 <div className="relative">
                                     <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-velora-text-subtle" />
                                     <input
+                                        id="password"
                                         type="password"
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}

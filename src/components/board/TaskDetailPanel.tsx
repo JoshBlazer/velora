@@ -171,8 +171,9 @@ export function TaskDetailPanel({
                         <div className="p-5 space-y-5">
                             {/* Content */}
                             <div>
-                                <label className="mb-1.5 block text-xs text-velora-text-subtle">Title</label>
+                                <label htmlFor="task-title" className="mb-1.5 block text-xs text-velora-text-subtle">Title</label>
                                 <textarea
+                                    id="task-title"
                                     value={content}
                                     onChange={(e) => setContent(e.target.value)}
                                     rows={3}
@@ -182,8 +183,8 @@ export function TaskDetailPanel({
 
                             {/* Priority */}
                             <div>
-                                <label className="mb-1.5 block text-xs text-velora-text-subtle">Priority</label>
-                                <div className="flex gap-2">
+                                <span id="task-priority-label" className="mb-1.5 block text-xs text-velora-text-subtle">Priority</span>
+                                <div className="flex gap-2" role="group" aria-labelledby="task-priority-label">
                                     {(["LOW", "MEDIUM", "HIGH"] as Priority[]).map((p) => (
                                         <button
                                             key={p}
@@ -204,7 +205,7 @@ export function TaskDetailPanel({
 
                             {/* Due Date */}
                             <div>
-                                <label className="mb-1.5 flex items-center gap-1.5 text-xs text-velora-text-subtle">
+                                <label htmlFor="task-due-date" className="mb-1.5 flex items-center gap-1.5 text-xs text-velora-text-subtle">
                                     <Calendar className="h-3 w-3" />
                                     Due Date
                                     {dueDateStr && (
@@ -214,6 +215,7 @@ export function TaskDetailPanel({
                                     )}
                                 </label>
                                 <input
+                                    id="task-due-date"
                                     type="date"
                                     value={dueDate}
                                     onChange={(e) => setDueDate(e.target.value)}
@@ -223,11 +225,12 @@ export function TaskDetailPanel({
 
                             {/* Assignee */}
                             <div>
-                                <label className="mb-1.5 flex items-center gap-1.5 text-xs text-velora-text-subtle">
+                                <label htmlFor="task-assignee" className="mb-1.5 flex items-center gap-1.5 text-xs text-velora-text-subtle">
                                     <User className="h-3 w-3" />
                                     Assignee
                                 </label>
                                 <select
+                                    id="task-assignee"
                                     value={assigneeId ?? ""}
                                     onChange={(e) => setAssigneeId(e.target.value || null)}
                                     className="w-full rounded-lg bg-white/5 px-3 py-1.5 text-sm text-white outline-none ring-1 ring-white/10 transition-all focus:ring-velora-cyan/50 [color-scheme:dark]"

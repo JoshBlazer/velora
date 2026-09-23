@@ -168,10 +168,11 @@ export function SettingsClient({ initialName, initialImage, email, hasPassword }
 
                         <form onSubmit={handleSaveProfile} className="space-y-4">
                             <div>
-                                <label className="mb-1.5 block text-sm font-medium text-velora-text-muted">
+                                <label htmlFor="display-name" className="mb-1.5 block text-sm font-medium text-velora-text-muted">
                                     Display name
                                 </label>
                                 <input
+                                    id="display-name"
                                     type="text"
                                     value={name}
                                     onChange={(e) => setName(e.target.value)}
@@ -180,10 +181,11 @@ export function SettingsClient({ initialName, initialImage, email, hasPassword }
                                 />
                             </div>
                             <div>
-                                <label className="mb-1.5 block text-sm font-medium text-velora-text-muted">
+                                <label htmlFor="avatar-url" className="mb-1.5 block text-sm font-medium text-velora-text-muted">
                                     Avatar URL
                                 </label>
                                 <input
+                                    id="avatar-url"
                                     type="url"
                                     value={image}
                                     onChange={(e) => setImage(e.target.value)}
@@ -214,10 +216,11 @@ export function SettingsClient({ initialName, initialImage, email, hasPassword }
 
                             <form onSubmit={handleChangePassword} className="space-y-4">
                                 <div>
-                                    <label className="mb-1.5 block text-sm font-medium text-velora-text-muted">
+                                    <label htmlFor="current-password" className="mb-1.5 block text-sm font-medium text-velora-text-muted">
                                         Current password
                                     </label>
                                     <input
+                                        id="current-password"
                                         type="password"
                                         value={currentPassword}
                                         onChange={(e) => setCurrentPassword(e.target.value)}
@@ -226,10 +229,11 @@ export function SettingsClient({ initialName, initialImage, email, hasPassword }
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1.5 block text-sm font-medium text-velora-text-muted">
+                                    <label htmlFor="new-password" className="mb-1.5 block text-sm font-medium text-velora-text-muted">
                                         New password
                                     </label>
                                     <input
+                                        id="new-password"
                                         type="password"
                                         value={newPassword}
                                         onChange={(e) => setNewPassword(e.target.value)}
@@ -239,10 +243,11 @@ export function SettingsClient({ initialName, initialImage, email, hasPassword }
                                     />
                                 </div>
                                 <div>
-                                    <label className="mb-1.5 block text-sm font-medium text-velora-text-muted">
+                                    <label htmlFor="confirm-new-password" className="mb-1.5 block text-sm font-medium text-velora-text-muted">
                                         Confirm new password
                                     </label>
                                     <input
+                                        id="confirm-new-password"
                                         type="password"
                                         value={confirmPassword}
                                         onChange={(e) => setConfirmPassword(e.target.value)}

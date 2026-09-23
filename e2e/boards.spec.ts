@@ -35,7 +35,7 @@ test.describe("Boards", () => {
         await page.getByText("Create New Board").click();
         await page.waitForURL(/\/boards\/new/);
 
-        await page.getByPlaceholder(/board name/i).fill("My E2E Board");
+        await page.getByLabel("Board Name").fill("My E2E Board");
         await page.getByRole("button", { name: /create/i }).click();
 
         await page.waitForURL(/\/board\//, { timeout: 10_000 });

@@ -70,10 +70,11 @@ export default function NewBoardPage() {
 
                         <form onSubmit={handleSubmit} className="space-y-6">
                             <div>
-                                <label className="mb-2 block text-sm font-medium text-velora-text-muted">
+                                <label htmlFor="board-name" className="mb-2 block text-sm font-medium text-velora-text-muted">
                                     Board Name
                                 </label>
                                 <input
+                                    id="board-name"
                                     type="text"
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
