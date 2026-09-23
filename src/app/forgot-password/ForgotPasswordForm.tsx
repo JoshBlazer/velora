@@ -97,12 +97,13 @@ export function ForgotPasswordForm() {
 
                                 <form onSubmit={handleSubmit} className="space-y-6">
                                     <div>
-                                        <label className="mb-2 block text-sm font-medium text-velora-text-muted">
+                                        <label htmlFor="email" className="mb-2 block text-sm font-medium text-velora-text-muted">
                                             Email
                                         </label>
                                         <div className="relative">
                                             <Mail className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-velora-text-subtle" />
                                             <input
+                                                id="email"
                                                 type="email"
                                                 value={email}
                                                 onChange={(e) => setEmail(e.target.value)}

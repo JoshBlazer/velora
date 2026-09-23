@@ -91,12 +91,13 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
             <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
-                    <label className="mb-2 block text-sm font-medium text-velora-text-muted">
+                    <label htmlFor="password" className="mb-2 block text-sm font-medium text-velora-text-muted">
                         New password
                     </label>
                     <div className="relative">
                         <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-velora-text-subtle" />
                         <input
+                            id="password"
                             type="password"
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
@@ -109,12 +110,13 @@ export function ResetPasswordForm({ token }: { token: string }) {
                 </div>
 
                 <div>
-                    <label className="mb-2 block text-sm font-medium text-velora-text-muted">
+                    <label htmlFor="confirm-password" className="mb-2 block text-sm font-medium text-velora-text-muted">
                         Confirm password
                     </label>
                     <div className="relative">
                         <Lock className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-velora-text-subtle" />
                         <input
+                            id="confirm-password"
                             type="password"
                             value={confirm}
                             onChange={(e) => setConfirm(e.target.value)}
