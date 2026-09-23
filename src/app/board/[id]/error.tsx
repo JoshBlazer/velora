@@ -16,7 +16,7 @@ export default function BoardError({
                 <GlassPanel intensity="medium" className="max-w-sm p-8 text-center">
                     <p className="mb-2 text-lg font-semibold text-white">Something went wrong</p>
                     <p className="mb-6 text-sm text-velora-text-muted">
-                        Couldn't load this board. Try again or go back to your boards.
+                        Couldn&apos;t load this board. Try again or go back to your boards.
                     </p>
                     <div className="flex justify-center gap-3">
                         <button

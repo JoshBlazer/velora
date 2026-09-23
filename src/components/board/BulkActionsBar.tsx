@@ -9,7 +9,6 @@ import { ColumnWithTasks } from "@/lib/types";
 interface BulkActionsBarProps {
     selectedCount: number;
     columns: ColumnWithTasks[];
-    boardId: string;
     onClear: () => void;
     onBulkDelete: () => void;
     onBulkMove: (targetColumnId: string) => void;
@@ -19,7 +18,6 @@ interface BulkActionsBarProps {
 export function BulkActionsBar({
     selectedCount,
     columns,
-    boardId,
     onClear,
     onBulkDelete,
     onBulkMove,

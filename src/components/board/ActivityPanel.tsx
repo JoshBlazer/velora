@@ -52,12 +52,27 @@ export function ActivityPanel({ boardId, isOpen, onClose }: ActivityPanelProps) 
 
     useEffect(() => {
         if (!isOpen) return;
-        setIsLoading(true);
-        fetch(`/api/boards/${boardId}/activity`)
-            .then((r) => r.json())
-            .then((data) => setActivities(Array.isArray(data) ? data : []))
-            .catch(() => setActivities([]))
-            .finally(() => setIsLoading(false));
+
+        const controller = new AbortController();
+
+        const load = async () => {
+            setIsLoading(true);
+            try {
+                const res = await fetch(`/api/boards/${boardId}/activity`, {
+                    signal: controller.signal,
+                });
+                const data = await res.json();
+                setActivities(Array.isArray(data) ? data : []);
+            } catch (err) {
+                if ((err as Error)?.name === "AbortError") return;
+                setActivities([]);
+            } finally {
+                if (!controller.signal.aborted) setIsLoading(false);
+            }
+        };
+
+        load();
+        return () => controller.abort();
     }, [isOpen, boardId]);
 
     return (

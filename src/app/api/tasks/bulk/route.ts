@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
                 select: { order: true },
             });
 
-            let nextOrder = (maxOrder?.order ?? -1) + 1;
+            const nextOrder = (maxOrder?.order ?? -1) + 1;
             await prisma.$transaction(
                 taskIds.map((id, i) =>
                     prisma.task.update({

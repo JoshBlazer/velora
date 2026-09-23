@@ -15,7 +15,7 @@ export default function BoardsError({
                 <GlassPanel intensity="medium" className="max-w-sm p-8 text-center">
                     <p className="mb-2 text-lg font-semibold text-white">Something went wrong</p>
                     <p className="mb-6 text-sm text-velora-text-muted">
-                        Couldn't load your boards. Try again.
+                        Couldn&apos;t load your boards. Try again.
                     </p>
                     <button
                         onClick={reset}
