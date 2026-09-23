@@ -3,6 +3,18 @@ import { PrismaAdapter } from "@auth/prisma-adapter";
 import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
+import { rateLimit, getClientIp } from "@/lib/rate-limit";
+
+// Signup, forgot-password and reset-password were already rate limited. Login
+// was not, which left unlimited password guessing against every account.
+const LOGIN_WINDOW_MS = 15 * 60 * 1000;
+const LOGIN_MAX_PER_IP = 20;
+const LOGIN_MAX_PER_EMAIL = 10;
+
+// Enforced unless explicitly disabled. Accounts created before this have
+// emailVerified = null and would be locked out, so backfill them first with
+// `npm run db:verify-existing`.
+const requireVerifiedEmail = process.env.REQUIRE_EMAIL_VERIFICATION !== "false";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
     adapter: PrismaAdapter(prisma),
@@ -19,13 +31,32 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 email: { label: "Email", type: "email" },
                 password: { label: "Password", type: "password" },
             },
-            async authorize(credentials) {
+            async authorize(credentials, request) {
                 if (!credentials?.email || !credentials?.password) {
                     return null;
                 }
 
                 const email = credentials.email as string;
                 const password = credentials.password as string;
+
+                // Only the throttling key is normalised. The lookup keeps the
+                // address as supplied, because existing rows were stored
+                // as-entered and lowercasing here would lock those accounts out.
+                const emailKey = email.toLowerCase();
+
+                // Throttle by IP and by account. The IP limit slows a single
+                // source working through many accounts; the per-email limit
+                // slows a distributed attack concentrated on one account.
+                const ip = getClientIp(request as unknown as Request);
+                const [ipAllowed, emailAllowed] = await Promise.all([
+                    rateLimit(`login-ip:${ip}`, LOGIN_MAX_PER_IP, LOGIN_WINDOW_MS),
+                    rateLimit(`login-email:${emailKey}`, LOGIN_MAX_PER_EMAIL, LOGIN_WINDOW_MS),
+                ]);
+
+                if (!ipAllowed || !emailAllowed) {
+                    console.warn(`[auth] Login rate limit hit (ip=${ip})`);
+                    return null;
+                }
 
                 const user = await prisma.user.findUnique({
                     where: { email },
@@ -38,6 +69,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 const isPasswordValid = await bcrypt.compare(password, user.password);
 
                 if (!isPasswordValid) {
+                    return null;
+                }
+
+                // Until this, the verification flow set emailVerified and
+                // nothing ever read it, so anyone could sign up with an
+                // address they did not control and use it immediately.
+                if (requireVerifiedEmail && !user.emailVerified) {
+                    console.warn(`[auth] Login blocked for unverified address`);
                     return null;
                 }
 

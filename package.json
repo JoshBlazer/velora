@@ -9,6 +9,7 @@
     "lint": "eslint",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
+    "db:verify-existing": "tsx prisma/verify-existing.ts",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
     "test": "vitest run",

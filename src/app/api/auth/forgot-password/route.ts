@@ -11,7 +11,7 @@ const schema = z.object({
 
 export async function POST(request: NextRequest) {
     try {
-        if (!rateLimit(`forgot-password:${getClientIp(request)}`, 3, 60 * 60 * 1000)) {
+        if (!await rateLimit(`forgot-password:${getClientIp(request)}`, 3, 60 * 60 * 1000)) {
             return NextResponse.json({ error: "Too many requests. Try again later." }, { status: 429 });
         }
 
