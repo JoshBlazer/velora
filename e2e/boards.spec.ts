@@ -1,7 +1,8 @@
 import { test, expect } from "@playwright/test";
+import { BOARDS_EMAIL, BOARDS_PASSWORD } from "./global-setup";
 
-const TEST_EMAIL = "boards-e2e@velora-e2e.test";
-const TEST_PASSWORD = "e2epassword123";
+const TEST_EMAIL = BOARDS_EMAIL;
+const TEST_PASSWORD = BOARDS_PASSWORD;
 
 async function loginAs(page: import("@playwright/test").Page, email: string, password: string) {
     await page.goto("/login");
@@ -12,17 +13,10 @@ async function loginAs(page: import("@playwright/test").Page, email: string, pas
 }
 
 test.describe("Boards", () => {
-    test.beforeAll(async ({ browser }) => {
-        // Create the test account once
-        const page = await browser.newPage();
-        await page.goto("/signup");
-        await page.getByLabel("Full Name").fill("Boards E2E");
-        await page.getByLabel("Email").fill(TEST_EMAIL);
-        await page.getByLabel("Password").fill(TEST_PASSWORD);
-        await page.getByRole("button", { name: "Create Account" }).click();
-        await page.waitForURL(/\/boards/, { timeout: 15_000 });
-        await page.close();
-    });
+    // The account is seeded in global-setup, not created through the signup
+    // UI: a beforeAll signup re-runs on every retry and exhausts the signup
+    // rate limit, after which the account never exists and each login hangs
+    // on /login.
 
     test("boards page shows create board card", async ({ page }) => {
         await loginAs(page, TEST_EMAIL, TEST_PASSWORD);
