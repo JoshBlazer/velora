@@ -12,6 +12,7 @@ import { GlassLayout } from "@/components/layout/GlassLayout";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { Sparkles, Plus, Layers, Settings, Users } from "lucide-react";
 import { SignOutButton } from "./SignOutButton";
+import { RemoteAvatar } from "@/components/ui/RemoteAvatar";
 
 export default async function BoardsPage() {
     const session = await auth();
@@ -65,7 +66,7 @@ export default async function BoardsPage() {
                             className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-velora-text-muted transition-colors hover:bg-white/10 hover:text-white"
                         >
                             {session.user.image ? (
-                                <img
+                                <RemoteAvatar
                                     src={session.user.image}
                                     alt={session.user.name ?? "avatar"}
                                     width={28}

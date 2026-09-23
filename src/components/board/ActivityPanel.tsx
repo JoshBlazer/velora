@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Activity } from "lucide-react";
 import { GlassPanel } from "@/components/ui/GlassPanel";
 import { ActivityType } from "@prisma/client";
+import { RemoteAvatar } from "@/components/ui/RemoteAvatar";
 
 interface ActivityEntry {
     id: string;
@@ -120,7 +121,7 @@ export function ActivityPanel({ boardId, isOpen, onClose }: ActivityPanelProps) 
                                         <div key={entry.id} className="flex gap-3">
                                             <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-velora-cyan/40 to-velora-pink/40 text-xs font-semibold text-white">
                                                 {entry.user.image ? (
-                                                    <img
+                                                    <RemoteAvatar
                                                         src={entry.user.image}
                                                         alt={entry.user.name ?? ""}
                                                         className="h-7 w-7 rounded-full object-cover"
