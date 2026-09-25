@@ -35,5 +35,12 @@ jobs:
       - name: Lint
         run: npm run lint
 
+      # The README drifted behind the code three times in a single day, each
+      # time within an hour of being declared accurate. This asserts that
+      # every npm script and every environment variable the app reads is
+      # documented, and that the advertised test counts are real.
+      - name: Docs in step with code
+        run: npm run check:docs
+
       - name: Unit tests
         run: npm test
