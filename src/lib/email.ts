@@ -1,4 +1,8 @@
-const FROM = "Velora <noreply@velora.app>";
+// Resend refuses to send from a domain the account has not verified, so this
+// has to be configurable. Hardcoding velora.app meant any deployment on
+// another domain silently failed to send -- and since login requires a
+// verified address, that is an app nobody can get into.
+const FROM = process.env.EMAIL_FROM || "Velora <noreply@velora.app>";
 const APP_URL = process.env.APP_URL || "http://localhost:3000";
 const API_KEY = process.env.RESEND_API_KEY;
 
