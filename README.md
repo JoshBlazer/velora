@@ -1,6 +1,49 @@
 # Velora
 
-A visual kanban board for creative workflows. Built with Next.js 16, Prisma, and NextAuth.
+**A collaborative kanban board for creative teams** — boards you share with
+teammates, tasks with assignees, labels, due dates and threaded comments, and a
+board that updates itself while someone else is moving cards around.
+
+Built from scratch with Next.js 16, Prisma and Auth.js: no Trello API, no
+managed auth provider, no UI kit.
+
+[![CI](https://github.com/JoshBlazer/velora/actions/workflows/ci.yml/badge.svg)](https://github.com/JoshBlazer/velora/actions/workflows/ci.yml)
+[![E2E](https://github.com/JoshBlazer/velora/actions/workflows/e2e.yml/badge.svg)](https://github.com/JoshBlazer/velora/actions/workflows/e2e.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
+![The board view: four columns of tasks with priority chips, labels, due dates and assignee avatars](docs/screenshots/board.jpg)
+
+<table>
+<tr>
+<td width="50%">
+
+![The task detail panel, showing priority, due date, assignee, labels and a comment thread](docs/screenshots/task-detail.jpg)
+
+**Task detail** — priority, due date, assignee, labels and comments, without leaving the board.
+
+</td>
+<td width="50%">
+
+![The analytics panel, showing totals, overdue count, completion rate and breakdowns by priority and column](docs/screenshots/analytics.jpg)
+
+**Analytics** — totals, overdue, completion rate, and breakdowns by priority and column.
+
+</td>
+</tr>
+</table>
+
+## Quality
+
+| | |
+|---|---|
+| Tests | **34 unit** (Vitest) + **18 end-to-end** (Playwright) |
+| CI | Type check, lint and unit tests on every push; full E2E against a production build and a real Postgres |
+| Dependencies | **0** `npm audit` advisories |
+| Lint | **0** errors, **0** warnings — CI fails on errors |
+| Accessibility | Form controls are properly labelled; the E2E suite drives the app the way a screen reader reads it, via `getByLabel` |
+
+Authentication, authorisation and rate limiting are covered by tests rather
+than assumed — see [Security](#security).
 
 ## Stack
 
@@ -243,3 +286,7 @@ the variable and its consequence.
 documented in `.env.example`. `SKIP_ENV_VALIDATION` exists for the E2E job,
 which serves a production build with no mail provider; setting it on a real
 deployment just restores the silent failures the startup check exists to catch.
+
+## License
+
+[MIT](LICENSE) — do what you like with it.
