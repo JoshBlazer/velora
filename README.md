@@ -44,7 +44,7 @@ first load after a quiet spell wakes the database and can take a few seconds.
 
 | | |
 |---|---|
-| Tests | **34 unit** (Vitest) + **18 end-to-end** (Playwright) |
+| Tests | **34 unit** (Vitest) + **22 end-to-end** (Playwright) |
 | CI | Type check, lint and unit tests on every push; full E2E against a production build and a real Postgres |
 | Dependencies | **0** `npm audit` advisories |
 | Lint | **0** errors, **0** warnings — CI fails on errors |
@@ -251,8 +251,17 @@ also chooses the recipient.
 - Board authorisation goes through `lib/board-access.ts`. Requests for a board
   the caller cannot read return 404 rather than 403, so existence is not
   confirmed.
-- Signup, password reset, forgot-password and invite sending are all rate
-  limited.
+- Signup, password reset, forgot-password, invite sending and password changes
+  are all rate limited.
+- Changing or resetting a password signs out every existing session. Sessions
+  are JWTs, so users carry a `passwordChangedAt` and tokens issued before it
+  are refused — otherwise "change your password" would leave whoever prompted
+  it still signed in elsewhere.
+- Deleting an account requires the password, not just a session. It is
+  irreversible and cascades to every board the account owns, including boards
+  shared with other people.
+- Values that reach an email body are escaped. The templates are HTML, they
+  send from our own domain, and for invites the sender chooses the recipient.
 
 ## Deployment
 
