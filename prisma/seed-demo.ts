@@ -24,6 +24,19 @@ const TEAMMATE_EMAIL = "devan@velora.app";
 const inDays = (n: number) => new Date(Date.now() + n * 24 * 60 * 60 * 1000);
 
 async function main() {
+    // This creates an account whose password is published, so it must only
+    // ever touch a demo database. Demo mode is the signal for that, and the
+    // check is what makes it safe to run from the deploy itself -- which in
+    // turn is what guarantees the seed and the app agree on which database
+    // they mean.
+    if (process.env.REQUIRE_EMAIL_VERIFICATION !== "false") {
+        console.log(
+            "[seed-demo] Skipping: REQUIRE_EMAIL_VERIFICATION is not \"false\", so this " +
+            "is not a demo deployment. Set it to \"false\" if you meant to seed a demo."
+        );
+        return;
+    }
+
     if (!process.env.DEMO_PASSWORD) {
         console.warn(
             "[seed-demo] DEMO_PASSWORD is not set, falling back to the default. " +
