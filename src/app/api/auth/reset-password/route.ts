@@ -43,7 +43,19 @@ export async function POST(request: NextRequest) {
         const hashed = await bcrypt.hash(password, 12);
 
         await prisma.$transaction([
-            prisma.user.update({ where: { email }, data: { password: hashed } }),
+            prisma.user.update({
+                where: { email },
+                data: {
+                    password: hashed,
+                    // Signs out every existing session. Someone resetting a
+                    // password usually suspects it is compromised, so leaving
+                    // other sessions alive defeats the point of resetting it.
+                    passwordChangedAt: new Date(),
+                    // Following the emailed link proves control of the
+                    // address, which is all verification asks for.
+                    emailVerified: new Date(),
+                },
+            }),
             prisma.verificationToken.delete({ where: { token } }),
         ]);
 
