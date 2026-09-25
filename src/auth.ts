@@ -117,11 +117,38 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 token.id = user.id;
                 token.name = user.name;
                 token.picture = user.image;
+
+                const record = await prisma.user.findUnique({
+                    where: { id: user.id as string },
+                    select: { passwordChangedAt: true },
+                });
+                token.pwdAt = record?.passwordChangedAt?.getTime() ?? 0;
+
+                return token;
             }
+
             if (trigger === "update" && session) {
                 token.name = session.name ?? token.name;
                 token.picture = session.image ?? token.picture;
             }
+
+            // Sessions are stateless, so a password change cannot expire them
+            // on its own. Refusing tokens issued before the current
+            // passwordChangedAt is what makes "change your password" actually
+            // remove access from anyone else holding a session.
+            if (token.id) {
+                const record = await prisma.user.findUnique({
+                    where: { id: token.id as string },
+                    select: { passwordChangedAt: true },
+                });
+
+                // The account is gone.
+                if (!record) return null;
+
+                const changedAt = record.passwordChangedAt?.getTime() ?? 0;
+                if (changedAt > ((token.pwdAt as number) ?? 0)) return null;
+            }
+
             return token;
         },
         async session({ session, token }) {

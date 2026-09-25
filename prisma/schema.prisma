@@ -50,6 +50,11 @@ model User {
   email         String    @unique
   emailVerified DateTime?
   password      String?   // Hashed password for credentials auth
+  // Sessions are JWTs, so nothing server-side expires them when a password
+  // changes. Tokens carry the value this held when they were issued, and
+  // anything older is refused -- which is what makes a password change or
+  // reset actually sign other devices out.
+  passwordChangedAt DateTime?
   name          String?
   image         String?   // Avatar URL
   createdAt     DateTime  @default(now())

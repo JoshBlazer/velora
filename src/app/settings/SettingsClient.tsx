@@ -64,6 +64,7 @@ export function SettingsClient({ initialName, initialImage, email, hasPassword }
     const [passwordLoading, setPasswordLoading] = useState(false);
 
     const [deleteConfirm, setDeleteConfirm] = useState("");
+    const [deletePassword, setDeletePassword] = useState("");
     const [deleteLoading, setDeleteLoading] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
@@ -121,8 +122,15 @@ export function SettingsClient({ initialName, initialImage, email, hasPassword }
         if (deleteConfirm !== "DELETE") return;
         setDeleteLoading(true);
         try {
-            const res = await fetch("/api/user", { method: "DELETE" });
-            if (!res.ok) throw new Error("Failed to delete account");
+            const res = await fetch("/api/user", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ password: deletePassword }),
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || "Failed to delete account");
+            }
             await signOut({ callbackUrl: "/" });
         } catch (err) {
             toast.error(err instanceof Error ? err.message : "Something went wrong");
@@ -300,22 +308,37 @@ export function SettingsClient({ initialName, initialImage, email, hasPassword }
                                     Type <span className="font-mono font-bold text-red-400">DELETE</span> to confirm.
                                 </p>
                                 <input
+                                    id="delete-confirm"
                                     type="text"
                                     value={deleteConfirm}
                                     onChange={(e) => setDeleteConfirm(e.target.value)}
                                     placeholder="DELETE"
                                     className="w-full rounded-lg bg-red-500/5 px-4 py-2.5 text-white outline-none ring-1 ring-red-500/20 transition-all focus:ring-red-500/50"
                                 />
+                                {hasPassword && (
+                                    <div>
+                                        <label htmlFor="delete-password" className="mb-1.5 block text-sm text-velora-text-muted">
+                                            Confirm your password
+                                        </label>
+                                        <input
+                                            id="delete-password"
+                                            type="password"
+                                            value={deletePassword}
+                                            onChange={(e) => setDeletePassword(e.target.value)}
+                                            className="w-full rounded-lg bg-red-500/5 px-4 py-2.5 text-white outline-none ring-1 ring-red-500/20 transition-all focus:ring-red-500/50"
+                                        />
+                                    </div>
+                                )}
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={() => { setShowDeleteConfirm(false); setDeleteConfirm(""); }}
+                                        onClick={() => { setShowDeleteConfirm(false); setDeleteConfirm(""); setDeletePassword(""); }}
                                         className="flex-1 rounded-lg bg-white/10 px-4 py-2 text-sm text-velora-text-muted hover:bg-white/20"
                                     >
                                         Cancel
                                     </button>
                                     <button
                                         onClick={handleDeleteAccount}
-                                        disabled={deleteConfirm !== "DELETE" || deleteLoading}
+                                        disabled={deleteConfirm !== "DELETE" || (hasPassword && !deletePassword) || deleteLoading}
                                         className="flex-1 rounded-lg bg-red-500/20 px-4 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-500/30 disabled:opacity-40"
                                     >
                                         {deleteLoading ? "Deleting..." : "Delete forever"}
