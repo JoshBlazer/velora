@@ -140,11 +140,12 @@ npm run db:seed      # optional seed data
 ```
 
 > **On migrations.** This project uses `prisma db push`, not the migrate
-> workflow. `prisma/migrations/` still contains an old `init` migration that
-> predates the `Comment` model and task assignees, so `prisma migrate deploy`
-> would build a database missing those and the app would fail on any board
-> load. Treat that directory as stale: use `db push`, and if you want a
-> migrate-based workflow, regenerate a baseline from the current schema first.
+> workflow, and there is no `prisma/migrations/` directory. There used to be
+> one, holding a single `init` migration that predated the `Comment` model and
+> task assignees — `prisma migrate deploy` would have built a database missing
+> both, and the app would have failed on any board load. It was removed rather
+> than left looking authoritative. To adopt migrations later, generate a fresh
+> baseline from the current schema; the old one was no use as a starting point.
 
 ### 4. Run
 
@@ -164,6 +165,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run lint` | ESLint (CI fails on errors) |
 | `npm run db:push` | Push Prisma schema to database |
 | `npm run db:seed` | Seed the database |
+| `npm run db:seed-demo` | Seed the public demo account and board (demo mode only) |
 | `npm run db:verify-existing` | Mark pre-existing accounts as email-verified |
 | `npm run db:studio` | Open Prisma Studio |
 | `npm run db:generate` | Regenerate Prisma client |
@@ -280,13 +282,38 @@ the variable and its consequence.
 | `UPSTASH_REDIS_REST_URL`, `UPSTASH_REDIS_REST_TOKEN` | Shared rate limit state. Without it, login limits do not hold across instances |
 | `CRON_SECRET` | Protects `/api/cron/reminders`, scheduled daily in `vercel.json`. The route rejects every request when unset, so reminders silently never send |
 
+Also set `EMAIL_FROM` to an address on a domain your mail provider has
+verified. Resend refuses to send from anything else, and because login
+requires a verified address, a wrong value here is an app nobody can sign
+into.
+
 ### First deploy
+
+On Vercel the build script handles this: `vercel-build` runs `prisma generate`,
+then pushes the schema and seeds the demo, but only when `VERCEL_ENV` is
+`production`. Preview builds skip the database entirely — they share the same
+one, so reseeding from a pull request would wipe the board out from under the
+deployed demo.
+
+Deploying anywhere else, do it by hand:
 
 1. `npx prisma db push` against the production database (see the note on
    migrations above).
 2. If the database already has accounts created before email verification was
    enforced, run `npm run db:verify-existing`. They have no verification
    timestamp and would otherwise be unable to log in.
+
+### Running it as a public demo
+
+Set `REQUIRE_EMAIL_VERIFICATION="false"` and provide `DEMO_EMAIL` and
+`DEMO_PASSWORD`. There is no mail provider, so nobody can verify an address and
+therefore nobody could sign up; `npm run db:seed-demo` creates a ready-made
+account and a populated board instead.
+
+That password is public by design — it goes in this README. The seed refuses to
+run unless demo mode is on, so it can never create a public-password account in
+a real deployment, and it resets the board each time, which is how the demo
+undoes whatever visitors did to it.
 
 ### Optional tuning
 
