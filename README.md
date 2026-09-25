@@ -11,6 +11,14 @@ managed auth provider, no UI kit.
 [![E2E](https://github.com/JoshBlazer/velora/actions/workflows/e2e.yml/badge.svg)](https://github.com/JoshBlazer/velora/actions/workflows/e2e.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
+### ▶ [Try the live demo](https://velora-five-ashy.vercel.app)
+
+Sign in with **`demo@velora.app`** — password `PASSWORD123`.
+
+It is a shared sandbox, so treat anything you type as public. The board resets
+on every deployment, which puts back whatever the last visitor rearranged. The
+first load after a quiet spell wakes the database and can take a few seconds.
+
 ![The board view: four columns of tasks with priority chips, labels, due dates and assignee avatars](docs/screenshots/board.jpg)
 
 <table>
