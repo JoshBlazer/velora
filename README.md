@@ -48,6 +48,7 @@ first load after a quiet spell wakes the database and can take a few seconds.
 | CI | Type check, lint and unit tests on every push; full E2E against a production build and a real Postgres |
 | Dependencies | **0** `npm audit` advisories |
 | Lint | **0** errors, **0** warnings — CI fails on errors |
+| Docs | CI fails if this README stops matching the code — see `npm run check:docs` |
 | Accessibility | Form controls are properly labelled; the E2E suite drives the app the way a screen reader reads it, via `getByLabel` |
 
 Authentication, authorisation and rate limiting are covered by tests rather
@@ -163,6 +164,7 @@ Open [http://localhost:3000](http://localhost:3000).
 | `npm run build` | Production build |
 | `npm start` | Serve the production build |
 | `npm run lint` | ESLint (CI fails on errors) |
+| `npm run check:docs` | Fail if this README has fallen behind the code |
 | `npm run db:push` | Push Prisma schema to database |
 | `npm run db:seed` | Seed the database |
 | `npm run db:seed-demo` | Seed the public demo account and board (demo mode only) |

@@ -8,6 +8,7 @@
     "vercel-build": "prisma generate && if [ \"$VERCEL_ENV\" = \"production\" ]; then prisma db push --skip-generate && npm run db:seed-demo; fi && next build",
     "start": "next start",
     "lint": "eslint",
+    "check:docs": "node scripts/check-docs.mjs",
     "db:push": "prisma db push",
     "db:seed": "prisma db seed",
     "db:verify-existing": "tsx prisma/verify-existing.ts",
